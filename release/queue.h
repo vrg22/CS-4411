@@ -4,6 +4,20 @@
 #ifndef __QUEUE_H__
 #define __QUEUE_H__
 
+
+struct elem_q {
+    void* data;
+    elem_q* next;
+    elem_q* prev;
+};
+
+struct queue {
+    elem_q* head;
+    elem_q* tail;
+    int len;
+};
+
+
 /*
  * queue_t is a pointer to an internally maintained data structure.
  * Clients of this package do not need to know how queues are

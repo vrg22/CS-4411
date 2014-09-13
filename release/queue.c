@@ -11,7 +11,7 @@
  */
 queue_t
 queue_new() {
-    return (queue_t)0;
+    return (queue_t) malloc(sizeof queue);
 }
 
 /*
@@ -20,6 +20,16 @@ queue_new() {
  */
 int
 queue_prepend(queue_t queue, void* item) {
+    elem_q* elt =  (elem_q*) malloc (sizeof elem_q);
+    if(elt == NULL){
+        return -1;
+    }
+    elt->data = item;
+    elt->next = queue.head;
+    elt->prev = NULL;
+    queue.head = elt;
+    queue.len++;
+
     return 0;
 }
 
@@ -29,6 +39,16 @@ queue_prepend(queue_t queue, void* item) {
  */
 int
 queue_append(queue_t queue, void* item) {
+    elem_q* elt =  (elem_q*) malloc (sizeof elem_q);
+    if(elt == NULL){
+        return -1;
+    }
+    elt->data = item;
+    elt->next = NULL;
+    elt->prev = queue.tail;
+    queue.tail = elt;
+    queue.len++;
+
     return 0;
 }
 
