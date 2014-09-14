@@ -11,7 +11,7 @@
  */
 queue_t
 queue_new() {
-    return (queue_t) malloc(sizeof queue);
+    return /*(queue_t)*/ malloc(sizeof queue);		//CHANGE
 }
 
 /*
@@ -20,15 +20,15 @@ queue_new() {
  */
 int
 queue_prepend(queue_t queue, void* item) {
-    elem_q* elt =  (elem_q*) malloc (sizeof elem_q);
-    if(elt == NULL){
+    elem_q* elt =  (elem_q*) malloc(sizeof elem_q);
+    if (elt == NULL) {
         return -1;
     }
     elt->data = item;
-    elt->next = queue.head;
+    elt->next = queue->head;
     elt->prev = NULL;
-    queue.head = elt;
-    queue.len++;
+    queue->head = elt;
+    (queue->len)++;
 
     return 0;
 }
@@ -39,15 +39,15 @@ queue_prepend(queue_t queue, void* item) {
  */
 int
 queue_append(queue_t queue, void* item) {
-    elem_q* elt =  (elem_q*) malloc (sizeof elem_q);
-    if(elt == NULL){
+    elem_q* elt =  (elem_q*) malloc(sizeof elem_q);
+    if (elt == NULL) {
         return -1;
     }
     elt->data = item;
     elt->next = NULL;
-    elt->prev = queue.tail;
-    queue.tail = elt;
-    queue.len++;
+    elt->prev = queue->tail;
+    queue->tail = elt;
+    (queue->len)++;
 
     return 0;
 }
@@ -58,8 +58,54 @@ queue_append(queue_t queue, void* item) {
  */
 int
 queue_dequeue(queue_t queue, void** item) {
-    return 0;
+	elem_q* ptr;
+
+	if (queue->len == 0) {
+		*item = NULL;
+		return -1;
+
+	} else if (queue->len == 1) {
+		//Identify head
+		ptr = (queue->head);	
+	    *item = ptr->data;
+
+	    //Update Queue
+	    queue->head = NULL;
+	    queue->tail = NULL;
+	    (queue->len)--;
+		
+	    //Free element
+		ptr->data = NULL;		//Is a pointer; good practice to set to NULL, but Necessary?
+	    ptr->next = NULL;
+	    ptr->prev = NULL;
+	    free (ptr);
+
+	    return 0;
+
+    } else {
+    	//Identify head
+	    ptr = (queue->head);	
+	    *item = ptr->data;
+
+	    //Update head
+	    queue->head = (queue->head)->next;
+	    (queue->len)--;
+	    
+	    //Correct new Head/Tail
+	    (queue->tail)->next = (queue->head);
+	    (queue->head)->prev = (queue->tail);
+
+	    //Free element
+	    ptr->data = NULL;
+	    ptr->next = NULL;
+	    ptr->prev = NULL;
+	    free (ptr);
+
+	    return 0;
+	}
 }
+
+
 
 /*
  * Iterate the function parameter over each element in the queue.  The
@@ -68,7 +114,7 @@ queue_dequeue(queue_t queue, void** item) {
  * or -1 (failure).
  */
 int
-queue_iterate(queue_t queue, func_t f, void* item) {
+queue_iterate(queue_t queue, func_t f, void* item) {			//IMPLEMENT!!!!
     return 0;
 }
 
@@ -77,6 +123,10 @@ queue_iterate(queue_t queue, func_t f, void* item) {
  */
 int
 queue_free (queue_t queue) {
+    if (queue == NULL) {
+    	return -1;
+    }
+    free (queue);
     return 0;
 }
 
@@ -85,15 +135,61 @@ queue_free (queue_t queue) {
  */
 int
 queue_length(queue_t queue) {
-    return 0;
+	if (queue == NULL) {	//Correct?
+    	return -1;
+    }
+    return queue->len;
 }
 
 
 /*
  * Delete the specified item from the given queue.
- * Return -1 on error.
+ * Return 0 on success. Return -1 on error.
  */
 int
 queue_delete(queue_t queue, void* item) {
-    return 0;
+	elem_q* iter;
+
+	//Nothing to delete
+	if (queue == NULL || queue->len == 0) {
+		return -1;
+	}
+
+    iter = queue->head;
+    while ((iter->data != item) && (iter != queue->tail)){
+    	iter = iter->next;
+    }
+
+    //Found item
+    if (iter->data == item) {
+    	//Update references of adjacent elts
+    	(iter->prev)->next = iter->next;
+    	(iter->next)->prev = iter->prev;
+
+    	//Update queue ptrs to head/tail
+    	if(queue->len > 1) {	//More than one elt
+    		if(iter == queue->head)	//was head but NOT tail
+    			queue->head == iter->next;
+    		if(iter == queue->tail)	//was tail but NOT head
+   				queue->tail = iter->prev;
+   		}
+   		else{
+   			queue->head = NULL;
+   			queue->tail = NULL;
+   		}
+   		(queue->len)--;
+
+   		//Free elt
+   		iter->next = NULL;
+   		iter->prev = NULL;
+   		iter->data = NULL;	//Is this WRONG / is item a distinct copy of this pointer?
+   		free (iter);
+
+    	return 0;
+    }
+
+    //Item not found
+	else{
+ 		return -1;	
+	}
 }
