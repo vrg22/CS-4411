@@ -114,7 +114,25 @@ queue_dequeue(queue_t queue, void** item) {
  * or -1 (failure).
  */
 int
-queue_iterate(queue_t queue, func_t f, void* item) {			//IMPLEMENT!!!!
+queue_iterate(queue_t queue, func_t f, void* item) {
+    elem_q* iter;
+
+    if (queue == NULL)      //Failure: Null pointer
+        return -1;
+
+    if (queue->len == 0)    //nothing to do
+        return 0;
+
+    iter = queue->head;
+    while(iter->next != queue->head){
+        //Run Function
+        f(item, iter->data);
+        iter = iter->next;
+    }
+    
+    //Run Function on final element
+    f(item, iter->data);
+
     return 0;
 }
 
