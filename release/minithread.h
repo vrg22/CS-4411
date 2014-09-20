@@ -24,7 +24,6 @@ struct minithread {
 	proc_t func;
 	arg_t arg;
 };
-
 typedef struct minithread *minithread_t;
 
 /*

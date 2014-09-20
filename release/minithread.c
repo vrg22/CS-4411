@@ -23,6 +23,7 @@
  * that you feel they must have.
  */
 
+int thread_ctr = 0; //Need to initialize
 
 /* minithread functions */
 
@@ -39,7 +40,7 @@ minithread_create(proc_t proc, arg_t arg) {
 
     tcb = malloc(sizeof(struct minithread));
     if (tcb == NULL) return NULL;	//malloc failed
-    tcb->id = tcb;	//CHECK
+    tcb->id = thread_ctr++; //CHECK
     tcb->func = proc;
     tcb->arg = arg;
     return tcb;
@@ -65,7 +66,7 @@ minithread_start(minithread_t t) {
 
 void
 minithread_yield() {								//START HERE
-	
+
 }
 
 /*
