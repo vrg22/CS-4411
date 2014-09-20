@@ -15,7 +15,7 @@ struct queue {
     elem_q* head;
     elem_q* tail;
     int len;
-};			//Now this fits the def of queue_t below
+};
 
 
 /*

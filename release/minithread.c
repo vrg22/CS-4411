@@ -17,32 +17,43 @@
 
 /*
  * A minithread should be defined either in this file or in a private
- * header file.  Minithreads have a stack pointer with to make procedure
+ * header file.  Minithreads have a stack pointer with which to make procedure
  * calls, a stackbase which points to the bottom of the procedure
- * call stack, the ability to be enqueueed and dequeued, and any other state
+ * call stack, the ability to be enqueued and dequeued, and any other state
  * that you feel they must have.
  */
 
+/* LOCAL SCHEDULER VARIABLES */
+
+queue_t run_queue = NULL;
+
 int thread_ctr = 0; //Need to initialize
+
+
 
 /* minithread functions */
 
 minithread_t
-minithread_fork(proc_t proc, arg_t arg) {
-    return (minithread_t)0;
+minithread_fork(proc_t proc, arg_t arg) {               //CHECK!
+    minithread_t tcb = minithread_create(proc, arg);
+    if (tcb == NULL) return NULL;   //create failed
+    minithread_start(tcb);
+    return tcb;
 }
 
 minithread_t
 minithread_create(proc_t proc, arg_t arg) {
     minithread_t tcb;
 
-    if(proc == NULL) return NULL;	//fail if process pointer is NULL
+    if (proc == NULL) return NULL;  //fail if process pointer is NULL
 
     tcb = malloc(sizeof(struct minithread));
-    if (tcb == NULL) return NULL;	//malloc failed
-    tcb->id = thread_ctr++; //CHECK
+    if (tcb == NULL) return NULL;   //malloc failed
+
+    tcb->id = thread_ctr++;
     tcb->func = proc;
     tcb->arg = arg;
+    
     return tcb;
 }
 
@@ -52,8 +63,9 @@ minithread_self() {
 }
 
 int
-minithread_id() {
-    return 0;
+minithread_id() {               //-1 for no running???
+    minithread_t tcb = (minithread_t) ((run_queue->head)->data);
+    return tcb->id;
 }
 
 void
@@ -61,12 +73,16 @@ minithread_stop() {
 }
 
 void
-minithread_start(minithread_t t) {
+minithread_start(minithread_t t) {		//???
+    proc_t func = t->func;
+    if (queue_prepend(run_queue, t) == -1) return;   //couldn't add to queue  ???
+    func(t->arg);
+    return;
 }
 
 void
-minithread_yield() {								//START HERE
-
+minithread_yield() {
+    //
 }
 
 /*
@@ -78,13 +94,19 @@ minithread_yield() {								//START HERE
  *       program.
  *
  *       Initialize any private data structures.
- *       Create the idle thread.
+ *       "Create the idle thread.""
  *       Fork the thread which should call mainproc(mainarg)
  *       Start scheduling.
  *
  */
 void
-minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
+minithread_system_initialize(proc_t mainproc, arg_t mainarg) {          //?????
+    if (run_queue == NULL) run_queue = queue_new();
+
+    minithread_fork(mainproc, mainarg);         //creates and schedules
+    //run_queue
+    //if (run_queue->len)
+    
 }
 
 

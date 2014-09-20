@@ -28,7 +28,7 @@ struct semaphore {
  *      Allocate a new semaphore.
  */
 semaphore_t semaphore_create() {
-    return (semaphore_t)0;
+    return (semaphore_t)0;					//Is the following a cast?: return (semaphore_t)0;
 }
 
 /*

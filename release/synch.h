@@ -8,6 +8,9 @@
 
 
 typedef struct semaphore *semaphore_t;
+//struct semaphore {
+	//
+//};
 
 
 /*
