@@ -11,7 +11,7 @@
  */
 queue_t
 queue_new() {
-    return /*(queue_t)*/ malloc(sizeof queue);		//CHANGE
+    return malloc(sizeof(struct queue));		//Do I need to cast explicitly to (queue_t*)?
 }
 
 /*
@@ -20,7 +20,7 @@ queue_new() {
  */
 int
 queue_prepend(queue_t queue, void* item) {
-    elem_q* elt =  (elem_q*) malloc(sizeof elem_q);
+    elem_q* elt = (elem_q*) malloc(sizeof(elem_q));     //is *elem_q (also) correct?
     if (elt == NULL) {
         return -1;
     }
@@ -39,7 +39,7 @@ queue_prepend(queue_t queue, void* item) {
  */
 int
 queue_append(queue_t queue, void* item) {
-    elem_q* elt =  (elem_q*) malloc(sizeof elem_q);
+    elem_q* elt =  (elem_q*) malloc(sizeof(elem_q));
     if (elt == NULL) {
         return -1;
     }
@@ -187,7 +187,7 @@ queue_delete(queue_t queue, void* item) {
     	//Update queue ptrs to head/tail
     	if(queue->len > 1) {	//More than one elt
     		if(iter == queue->head)	//was head but NOT tail
-    			queue->head == iter->next;
+    			queue->head = iter->next;
     		if(iter == queue->tail)	//was tail but NOT head
    				queue->tail = iter->prev;
    		}

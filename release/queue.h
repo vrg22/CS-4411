@@ -4,7 +4,7 @@
 #ifndef __QUEUE_H__
 #define __QUEUE_H__
 
-
+typedef struct elem_q elem_q;
 struct elem_q {
     void* data;
     elem_q* next;
@@ -15,7 +15,7 @@ struct queue {
     elem_q* head;
     elem_q* tail;
     int len;
-};
+};			//Now this fits the def of queue_t below
 
 
 /*
