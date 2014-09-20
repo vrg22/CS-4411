@@ -33,7 +33,16 @@ minithread_fork(proc_t proc, arg_t arg) {
 
 minithread_t
 minithread_create(proc_t proc, arg_t arg) {
-    return (minithread_t)0;
+    minithread_t tcb;
+
+    if(proc == NULL) return NULL;	//fail if process pointer is NULL
+
+    tcb = malloc(sizeof(struct minithread));
+    if (tcb == NULL) return NULL;	//malloc failed
+    tcb->id = tcb;	//CHECK
+    tcb->func = proc;
+    tcb->arg = arg;
+    return tcb;
 }
 
 minithread_t
@@ -55,7 +64,8 @@ minithread_start(minithread_t t) {
 }
 
 void
-minithread_yield() {
+minithread_yield() {								//START HERE
+	
 }
 
 /*
