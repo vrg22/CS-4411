@@ -55,8 +55,9 @@ minithread_create(proc_t proc, arg_t arg) {
 	tcb->id = thread_ctr++;
     tcb->func = proc;
     tcb->arg = arg;
+    
     minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); 						//allocate fresh stack
-    minithread_initialize_stack(&(tcb->stacktop), proc, arg, &minithread_exit, NULL);		//initialize stack w/ proc & cleanup function
+    minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, NULL);		//initialize stack w/ proc & cleanup function
     																						//CHECK arg to minithread exit!
     return tcb;
 }
@@ -86,15 +87,15 @@ minithread_stop() {
 }
 
 void
-minithread_start(minithread_t t) {			//CHECK
-	minithread_t tcb_old;
-	if (queue_prepend(run_queue, t) == -1) return;
+minithread_start(minithread_t t) {			//Should this append or prepend?
+	//minithread_t tcb_old;
+	if (queue_append(run_queue, t) == -1) return;			//WAS prepend
 
-	if (t->id != minithread_id()) {		//only need to context switch if t is not the currently running process
+	/*if (t->id != minithread_id()) {		//only need to context switch if t is not the currently running process
     	printf("Context switch!\n");
     	tcb_old = (minithread_t) (run_queue->head->data);		//Current running proc
    		minithread_switch(&(tcb_old->stacktop), &(t->stacktop));
-   	}
+   	}*/
 }
 
 void
@@ -116,7 +117,7 @@ minithread_yield() {					//FIX!!
  *       program.
  *
  *       Initialize any private data structures.
- *       "Create the idle thread.""
+ *       "Create the idle thread."
  *       Fork the thread which should call mainproc(mainarg)
  *       Start scheduling.
  *
@@ -124,32 +125,45 @@ minithread_yield() {					//FIX!!
 void
 minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     minithread_t tcb;
-    proc_t func;
-    if (run_queue == NULL) run_queue = queue_new();
-	
-	//minithread_fork(mainproc, mainarg);         //creates and schedules at beginning
-	if (minithread_fork(mainproc, mainarg) == NULL){ printf("something's really wrong...\n"); return; }         //creates and schedules at beginning	
+	char dummystack[2048];
+    //proc_t func;
 
+    if (run_queue == NULL) run_queue = queue_new();
+
+	tcb = minithread_fork(mainproc, mainarg);         //creates and schedules at beginning
+    //minithread_create(NULL, NULL);
+    //tcb_dummy = (minithread_t) malloc(sizeof(struct minithread));		//Current running proc
+   	//minithread_allocate_stack(&(tcb_dummy->stackbase), &(tcb_dummy->stacktop)); 		//allocate fresh stack
+   	//minithread_switch(&(tcb_old->stacktop), &(t->stacktop));
+   	printf("%i\n", run_queue->len);
+   	printf("cur ID:%i  counter:%i\n", minithread_id(), thread_ctr);
+
+   	minithread_switch((void**) &(dummystack), &(tcb->stacktop));
+
+   	while(1){
+   		printf("SPINNING\n");
+   	}
+	/*
 	//Scheduling logic
     while(1){
-    	printf("QUEUE LENGTH:%i\n", queue_length(run_queue));
+    	//printf("QUEUE LENGTH:%i\n", queue_length(run_queue));
 
     	if (queue_length(run_queue) == 0){			//SHOULDNT HAPPEN IF YOU ADDED TO QUEUE?
-    		queue_free(run_queue);
-    		return;
+    		//queue_free(run_queue);
+    		//return;
     	}
     	else if (queue_length(run_queue) >= 1){	//At least one on queue
     		tcb = (minithread_t) (run_queue->head)->data;
-    		func = tcb->func;
-    		func(tcb->arg);
-   			//if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;	//Stop the guy who was run
+    		//func = tcb->func;
+    		//func(tcb->arg);
+   			if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;	//Stop the guy who was run
     	}
     	
-    	/*else{	//Multiple threads!
-    		(tcb->func)(tcb->arg);
+    	//else{	//Multiple threads!
+    	//	(tcb->func)(tcb->arg);
 
-    	}*/
-    }
+    	//}
+    }*/
     
 }
 

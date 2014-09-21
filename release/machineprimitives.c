@@ -95,7 +95,7 @@ extern int minithread_root();
  */
 void
 minithread_initialize_stack(
-        stack_pointer_t *stacktop,
+    stack_pointer_t *stacktop,
     proc_t body_proc,
     arg_t body_arg,
     proc_t finally_proc,
@@ -128,6 +128,7 @@ minithread_initialize_stack(
 int
 minithread_exit(arg_t arg){
 	//STUB!
+	printf("TESTING\n");
 	return 0;
 }
 

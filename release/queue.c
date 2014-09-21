@@ -74,7 +74,7 @@ queue_dequeue(queue_t queue, void** item) {
 
 	} else if (queue->len == 1) {
 		//Identify head
-		ptr = (queue->head);          if (item == NULL) printf("FATALLY BAD!\n");	 //REMOVE!
+		ptr = (queue->head);
 	    *item = ptr->data;
 
 	    //Update Queue
