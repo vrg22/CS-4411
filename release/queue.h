@@ -43,7 +43,7 @@ extern int queue_prepend(queue_t, void*);
 extern int queue_append(queue_t, void*);
 
 /*
- * Dequeue and return the first void* from the queue.
+ * Dequeue and "return" the first void* from the queue.
  * Return 0 (success) and first item if queue is nonempty, or -1 (failure) and
  * NULL if queue is empty.
  */

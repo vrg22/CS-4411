@@ -145,6 +145,7 @@ queue_free (queue_t queue) {
     	return -1;
     }
     free (queue);
+    queue = NULL;   //Make queue a NULL pointer     //Correct?
     return 0;
 }
 

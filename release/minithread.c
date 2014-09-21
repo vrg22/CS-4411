@@ -36,8 +36,10 @@ int thread_ctr = 0; //Need to initialize
 minithread_t
 minithread_fork(proc_t proc, arg_t arg) {               //CHECK!
     minithread_t tcb = minithread_create(proc, arg);
+   	printf("Forking\n");
     if (tcb == NULL) return NULL;   //create failed
     minithread_start(tcb);
+    printf("Finished forking.\n");
     return tcb;
 }
 
@@ -50,39 +52,44 @@ minithread_create(proc_t proc, arg_t arg) {
     tcb = malloc(sizeof(struct minithread));
     if (tcb == NULL) return NULL;   //malloc failed
 
-    tcb->id = thread_ctr++;
+	tcb->id = thread_ctr++;
     tcb->func = proc;
     tcb->arg = arg;
+    minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); //allocate fresh stack
+    minithread_initialize_stack(&(tcb->stacktop), proc, arg, ???, ???);				//initialize stack
     
     return tcb;
 }
 
 minithread_t
-minithread_self() {
+minithread_self() {						//COMPLETE!!!
     return (minithread_t)0;
 }
 
 int
-minithread_id() {               //-1 for no running???
+minithread_id() {               //-1 for no running???				//CHECK!!!
     minithread_t tcb = (minithread_t) ((run_queue->head)->data);
     return tcb->id;
 }
 
 void
 minithread_stop() {
+	//Thread shouldn't be able to run anymore (unless something happens)
+	minithread_t tcb = NULL;
+   	if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;		//Why Explicit casting needed here?
 }
 
 void
-minithread_start(minithread_t t) {		//???
-    proc_t func = t->func;
-    if (queue_prepend(run_queue, t) == -1) return;   //couldn't add to queue  ???
-    func(t->arg);
+minithread_start(minithread_t t) {
+    if (queue_prepend(run_queue, t) == -1) return;   //CHECK!
     return;
 }
 
 void
-minithread_yield() {
-    //
+minithread_yield() {					//FIX!!
+   	minithread_t tcb = NULL;
+   	if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;	//needed?
+   	if (queue_append(run_queue, tcb) == -1) return;	//needed?
 }
 
 /*
@@ -100,12 +107,31 @@ minithread_yield() {
  *
  */
 void
-minithread_system_initialize(proc_t mainproc, arg_t mainarg) {          //?????
+minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
+    minithread_t tcb;
+    proc_t func;
     if (run_queue == NULL) run_queue = queue_new();
 
-    minithread_fork(mainproc, mainarg);         //creates and schedules
-    //run_queue
-    //if (run_queue->len)
+    minithread_fork(mainproc, mainarg);         //creates and schedules at beginning
+    //Scheduling logic
+    while(1){
+    	if ((run_queue->len) == 0){			//SHOULDNT HAPPEN IF YOU ADDED TO QUEUE?
+    		queue_free(run_queue);
+    		return;
+    	}
+    	else if ((run_queue->len /*==*/ >= 1)){	//Only one on queue
+    		tcb = (minithread_t) (run_queue->head)->data;
+    		printf("%i\n", tcb->id);
+    		func = tcb->func;
+    		func(tcb->arg);
+   			if (queue_dequeue(run_queue, (void**) &tcb) == -1) printf("DIDNT DEQUEUE?\n");/*return;*/	//Stop the guy who was run
+    	}
+    	
+    	/*else{	//Multiple threads!
+    		(tcb->func)(tcb->arg);
+
+    	}*/
+    }
     
 }
 

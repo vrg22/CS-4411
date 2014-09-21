@@ -21,8 +21,9 @@
  */
 struct minithread {
 	int id;
-	stack_pointer_t sp;
-	stack_pointer_t stackbase;  //Should this be *stackbase??? Why?
+
+	stack_pointer_t stackbase;
+	stack_pointer_t stacktop;
 
 	proc_t func;
 	arg_t arg;
