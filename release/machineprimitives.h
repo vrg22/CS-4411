@@ -71,6 +71,16 @@ extern void minithread_initialize_stack(stack_pointer_t *stacktop,
                                         arg_t  final_arg);
 
 
+/*
+This function marks the calling thread as "dead" or done executing. However, its stack space cannot
+be freed by itself. The scheduler frees the function's stack 
+
+This function is better known as the "final_proc" called in minithread_initialize_stack.
+
+*/
+extern int minithread_exit(arg_t arg);
+
+
 extern void minithread_trampoline(proc_t interrupt, void * arg);
 
 /* SYNCHRONIZATION PRIMITIVES */

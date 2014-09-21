@@ -57,7 +57,7 @@ minithread_allocate_stack(stack_pointer_t *stackbase, stack_pointer_t *stacktop)
 {
     *stackbase = (stack_pointer_t) malloc(STACKSIZE);
     if (!*stackbase)  {
-        return;
+    	return;
     }
 
     if (STACK_GROWS_DOWN)
@@ -119,3 +119,18 @@ minithread_initialize_stack(
 
     ss->root_proc = (void *) minithread_root;
 }
+
+
+/*
+* Freeing function. See machineprimitives.h for explanation.
+*
+*/
+int
+minithread_exit(arg_t arg){
+	//STUB!
+	return 0;
+}
+
+
+
+

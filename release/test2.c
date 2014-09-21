@@ -26,8 +26,9 @@ int thread2(int* arg) {
 int thread1(int* arg) {
   minithread_fork(thread2, NULL);
   printf("Thread 1.\n");
-  //minithread_yield();
-  //minithread_yield();
+  minithread_yield();
+  minithread_yield();
+  
   printf("Thread 1 DONE.\n");          //REMOVE
 
   return 0;

@@ -19,6 +19,7 @@
  *  This is the key data structure for the thread management package.
  *  You must define the thread control block as a struct minithread.
  */
+typedef struct minithread *minithread_t;
 struct minithread {
 	int id;
 
@@ -28,7 +29,6 @@ struct minithread {
 	proc_t func;
 	arg_t arg;
 };
-typedef struct minithread *minithread_t;
 
 /*
  * minithread_t

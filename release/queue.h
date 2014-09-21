@@ -11,12 +11,6 @@ struct elem_q {
     elem_q* prev;
 };
 
-struct queue {
-    elem_q* head;
-    elem_q* tail;
-    int len;
-};
-
 
 /*
  * queue_t is a pointer to an internally maintained data structure.
@@ -24,6 +18,12 @@ struct queue {
  * represented.  They see and manipulate only queue_t's.
  */
 typedef struct queue* queue_t;
+struct queue {
+    elem_q* head;
+    elem_q* tail;
+    int len;
+};
+
 
 /*
  * Return an empty queue.  Returns NULL on error.

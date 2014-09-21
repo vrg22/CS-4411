@@ -11,7 +11,11 @@
  */
 queue_t
 queue_new() {
-    return malloc(sizeof(struct queue));		//Do I need to cast explicitly to (queue_t*)?
+    queue_t queue = malloc(sizeof(struct queue));
+    if (queue == NULL) return NULL;
+    
+    queue->len = 0;
+    return queue;
 }
 
 /*
@@ -20,14 +24,16 @@ queue_new() {
  */
 int
 queue_prepend(queue_t queue, void* item) {
-    elem_q* elt = (elem_q*) malloc(sizeof(elem_q));     //is *elem_q (also) correct?
+    elem_q* elt = (elem_q*) malloc(sizeof(elem_q));
     if (elt == NULL) {
         return -1;
     }
     elt->data = item;
-    elt->next = queue->head;
-    elt->prev = NULL;
+    elt->next = (queue->len == 0) ? elt : queue->head;
+    elt->prev = (queue->len == 0) ? elt : queue->tail;
+    //make sure head/tail are defined
     queue->head = elt;
+    queue->tail = (queue->len == 0) ? elt : queue->tail;
     (queue->len)++;
 
     return 0;
@@ -44,8 +50,10 @@ queue_append(queue_t queue, void* item) {
         return -1;
     }
     elt->data = item;
-    elt->next = NULL;
-    elt->prev = queue->tail;
+    elt->next = (queue->len == 0) ? elt : queue->head;
+    elt->prev = (queue->len == 0) ? elt : queue->tail;
+    //make sure head/tail are defined
+    queue->head = (queue->len == 0) ? elt : queue->head;
     queue->tail = elt;
     (queue->len)++;
 
@@ -66,7 +74,7 @@ queue_dequeue(queue_t queue, void** item) {
 
 	} else if (queue->len == 1) {
 		//Identify head
-		ptr = (queue->head);	
+		ptr = (queue->head);          if (item == NULL) printf("FATALLY BAD!\n");	 //REMOVE!
 	    *item = ptr->data;
 
 	    //Update Queue
