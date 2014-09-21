@@ -158,7 +158,7 @@ queue_iterate(queue_t queue, func_t f, void* item) {
  * Free the queue and return 0 (success) or -1 (failure).
  */
 int
-queue_free (queue_t queue) {
+queue_free (queue_t queue) {                //MAY NEED WHILE LOOP TO FREE ALL THE ELEMENTS
     if (queue == NULL) {
     	return -1;
     }
