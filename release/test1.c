@@ -9,15 +9,13 @@
 #include <stdlib.h>
 
 
-int
-thread(int* arg) {
+int thread(int* arg) {
   printf("Hello, world!\n");
 
   return 0;
 }
 
-int
-main(void) {
+int main(void) {
   minithread_system_initialize(thread, NULL);
   return 0;
 }

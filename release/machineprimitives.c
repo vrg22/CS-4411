@@ -13,6 +13,8 @@
 #include "machineprimitives.h"
 #include <sys/mman.h>
 
+extern minithread_t globaltcb;
+
 /*
  * Used to initialize a thread's stack for the first context switch
  * to the thread.  The minithread_root procedure will be run with the
@@ -93,14 +95,7 @@ extern int minithread_root();
  *              body_proc(body_arg);
  *              finally_proc(finally_arg);
  */
-void
-minithread_initialize_stack(
-    stack_pointer_t *stacktop,
-    proc_t body_proc,
-    arg_t body_arg,
-    proc_t finally_proc,
-    arg_t finally_arg)
-{
+void minithread_initialize_stack(stack_pointer_t *stacktop, proc_t body_proc, arg_t body_arg, proc_t finally_proc, arg_t finally_arg) {
     initial_stack_state_t ss;
 
     /*
@@ -125,13 +120,9 @@ minithread_initialize_stack(
 * Freeing function. See machineprimitives.h for explanation.
 *
 */
-int
-minithread_exit(arg_t arg){
-	//STUB!
-	printf("TESTING\n");
+int minithread_exit(arg_t arg) {
+	printf("minithread_exit\n");
+  minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
+  // FREE SHIT
 	return 0;
 }
-
-
-
-

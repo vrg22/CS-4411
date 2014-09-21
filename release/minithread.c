@@ -26,6 +26,7 @@
 /* LOCAL SCHEDULER VARIABLES */
 
 queue_t run_queue = NULL;
+minithread_t globaltcb;
 
 int thread_ctr = 0; //Need to initialize
 
@@ -35,7 +36,10 @@ int thread_ctr = 0; //Need to initialize
 
 minithread_t minithread_fork(proc_t proc, arg_t arg) {               //CHECK!
     minithread_t tcb = minithread_create(proc, arg);
-    if (tcb == NULL){ printf("something's really wrong...\n"); return NULL; };   //create failed
+    if (tcb == NULL) {
+      printf("something's really wrong...\n");
+      return NULL;
+    }
     minithread_start(tcb);
     return tcb;
 }
@@ -44,18 +48,24 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     minithread_t tcb;
 
     //if (proc == NULL) return NULL;  //fail if process pointer is NULL
-    if (proc == NULL){ printf("something's really wrong...\n"); return NULL; };   //fail if process pointer is NULL
+    if (proc == NULL) {
+      printf("something's really wrong...\n");
+      return NULL;
+    }   //fail if process pointer is NULL
 
     tcb = malloc(sizeof(struct minithread));
     //if (tcb == NULL) return NULL;   //malloc failed
-    if (tcb == NULL){ printf("something's really wrong...\n"); return NULL; };   //malloc failed
+    if (tcb == NULL) {
+      printf("something's really wrong...\n");
+      return NULL;
+    }   //malloc failed
 
     tcb->id = thread_ctr++;
     tcb->func = proc;
     tcb->arg = arg;
     
     minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); 						//allocate fresh stack
-    minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, NULL);		//initialize stack w/ proc & cleanup function
+    minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, (arg_t) tcb);		//initialize stack w/ proc & cleanup function
     																						//CHECK arg to minithread exit!
     return tcb;
 }
@@ -117,11 +127,20 @@ void minithread_yield() {					//FIX!!
  */
 void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     minithread_t tcb;
-    char dummystack[2048];
+    // char dummystack[1];
     //proc_t func;
 
     if (run_queue == NULL) run_queue = queue_new();
-    tcb = minithread_fork(mainproc, mainarg);         //creates and schedules at beginning
+
+    globaltcb = (minithread_t) malloc(sizeof(struct minithread));
+    if (globaltcb == NULL) {
+      printf("globaltcb returned NULL\n");
+      return;
+    }
+    
+    minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
+
+    minithread_fork(mainproc, mainarg);         //creates and schedules at beginning
     //minithread_create(NULL, NULL);
     //tcb_dummy = (minithread_t) malloc(sizeof(struct minithread));		//Current running proc
    	//minithread_allocate_stack(&(tcb_dummy->stackbase), &(tcb_dummy->stacktop)); 		//allocate fresh stack
@@ -129,11 +148,15 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
    	printf("%i\n", run_queue->len);
    	printf("cur ID:%i  counter:%i\n", minithread_id(), thread_ctr);
 
-   	minithread_switch((void**) &(dummystack), &(tcb->stacktop));
+   	// minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));  // (void**) &(dummystack)
 
-   	while(1) {
-   		printf("SPINNING\n");
-   	}
+    while (queue_length(run_queue) > 0) {
+      tcb = (minithread_t) (run_queue->head->data);
+      minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));
+      queue_dequeue(run_queue, (void**) &tcb);
+    }
+
+   	printf("minithread_system_initialize COMPLETE\n");
 	/*
 	//Scheduling logic
     while(1){
