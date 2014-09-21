@@ -121,7 +121,7 @@ void minithread_initialize_stack(stack_pointer_t *stacktop, proc_t body_proc, ar
 *
 */
 int minithread_exit(arg_t arg) {
-	printf("minithread_exit\n");
+	// printf("minithread_exit\n");
   minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
   // FREE SHIT
 	return 0;

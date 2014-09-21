@@ -102,12 +102,11 @@ void minithread_start(minithread_t t) {			//Should this append or prepend?
    	}*/
 }
 
-void minithread_yield() {					//FIX!!
+void minithread_yield() {
    	minithread_t tcb_old, tcb_new;
-    tcb_old = NULL;
-   	if (queue_dequeue(run_queue, (void**) &tcb_old) == -1) return;	//needed?
+   	if (queue_dequeue(run_queue, (void**) &tcb_old) == -1) return;
+    if (queue_append(run_queue, tcb_old) == -1) return;
    	tcb_new = (minithread_t) (run_queue->head->data);
-   	if (queue_append(run_queue, tcb_old) == -1) return;	//needed?
    	minithread_switch(&(tcb_old->stacktop), &(tcb_new->stacktop));
 }
 
