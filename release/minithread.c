@@ -60,7 +60,7 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
       return NULL;
     }   //malloc failed
 
-    tcb->id = thread_ctr++;
+    tcb->id = ++thread_ctr;
     tcb->func = proc;
     tcb->arg = arg;
     
@@ -93,7 +93,7 @@ void minithread_stop() {
 
 void minithread_start(minithread_t t) {			//Should this append or prepend?
 	//minithread_t tcb_old;
-	if (queue_append(run_queue, t) == -1) return;			//WAS prepend
+	if (queue_append(run_queue, t) == -1) printf("uh oh");			//WAS prepend
 
 	/*if (t->id != minithread_id()) {		//only need to context switch if t is not the currently running process
     	printf("Context switch!\n");
@@ -152,8 +152,11 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
     while (queue_length(run_queue) > 0) {
       tcb = (minithread_t) (run_queue->head->data);
+      // printf("minithread_system_initialize: Got tcb with id: %i\n", tcb->id);
       minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));
-      queue_dequeue(run_queue, (void**) &tcb);
+      // printf("minithread_system_initialize: Done minithread_switch\nQueue is of size: %i\n", queue_length(run_queue));
+      if (queue_dequeue(run_queue, (void**) &tcb) == -1) printf("Deque failed");
+      // printf("minithread_system_initialize: Done queue_dequeue\nQueue is of size: %i\n", queue_length(run_queue));
     }
 
    	printf("minithread_system_initialize COMPLETE\n");

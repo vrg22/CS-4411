@@ -9,8 +9,7 @@
 /*
  * Return an empty queue.
  */
-queue_t
-queue_new() {
+queue_t queue_new() {
     queue_t queue = malloc(sizeof(struct queue));
     if (queue == NULL) return NULL;
     
@@ -22,24 +21,27 @@ queue_new() {
  * Prepend a void* to a queue (both specifed as parameters).  Return
  * 0 (success) or -1 (failure).
  */
-int
-queue_prepend(queue_t queue, void* item) {
-    elem_q* elt = (elem_q*) malloc(sizeof(elem_q));
-    if (elt == NULL) {
+int queue_prepend(queue_t queue, void* item) {
+    elem_q* elem = (elem_q*) malloc(sizeof(elem_q));
+    if (elem == NULL) {
         return -1;
     }
-    elt->data = item;
-    elt->next = (queue->len == 0) ? elt : queue->head;
-    elt->prev = (queue->len == 0) ? elt : queue->tail;
 
-    //make sure head/tail are defined
-    queue->head = elt;
-    queue->tail = (queue->len == 0) ? elt : queue->tail;
+    // Initialize elem data and pointers
+    elem->data = item;
+    elem->next = (queue->len == 0) ? elem : queue->head;
+    elem->prev = (queue->len == 0) ? elem : queue->tail;
+
+    // Set head and tail pointers
+    queue->head = elem;
+    queue->tail = (queue->len == 0) ? elem : queue->tail;
+
+    // Set old head and tail next and prev pointers
+    queue->head->next->prev = queue->head;
+    queue->tail->next = queue->head;
+
+    // Update queue length
     (queue->len)++;
-
-    //Need to adjust current head/tail pointers
-    queue->head->prev = elt;
-    queue->tail->next = elt;
 
     return 0;
 }
@@ -48,24 +50,27 @@ queue_prepend(queue_t queue, void* item) {
  * Append a void* to a queue (both specifed as parameters). Return
  * 0 (success) or -1 (failure).
  */
-int
-queue_append(queue_t queue, void* item) {
-    elem_q* elt =  (elem_q*) malloc(sizeof(elem_q));
-    if (elt == NULL) {
+int queue_append(queue_t queue, void* item) {
+    elem_q* elem = (elem_q*) malloc(sizeof(elem_q));
+    if (elem == NULL) {
         return -1;
     }
-    elt->data = item;
-    elt->next = (queue->len == 0) ? elt : queue->head;
-    elt->prev = (queue->len == 0) ? elt : queue->tail;
 
-    //make sure head/tail are defined
-    queue->head = (queue->len == 0) ? elt : queue->head;
-    queue->tail = elt;
+    // Initialize elem data and pointers
+    elem->data = item;
+    elem->next = (queue->len == 0) ? elem : queue->head;
+    elem->prev = (queue->len == 0) ? elem : queue->tail;
+
+    // Set head and tail pointers
+    queue->head = (queue->len == 0) ? elem : queue->head;
+    queue->tail = elem;
+
+    // Set old head and tail next and prev pointers
+    queue->head->prev = queue->tail;
+    queue->tail->prev->next = queue->tail;
+
+    // Update queue length
     (queue->len)++;
-
-    //Need to adjust current head/tail's pointers
-    queue->head->prev = elt;
-    queue->tail->next = elt;
 
     return 0;
 }
@@ -74,15 +79,16 @@ queue_append(queue_t queue, void* item) {
  * Dequeue and return the first void* from the queue or NULL if queue
  * is empty.  Return 0 (success) or -1 (failure).
  */
-int
-queue_dequeue(queue_t queue, void** item) {
+int queue_dequeue(queue_t queue, void** item) {
 	elem_q* ptr;
 
 	if (queue->len == 0) {
 		*item = NULL;
+        // printf("Size = 0\n");
 		return -1;
 
 	} else if (queue->len == 1) {
+        // printf("Size = 1\n");
 		//Identify head
 		ptr = (queue->head);
 	    *item = ptr->data;
@@ -93,14 +99,15 @@ queue_dequeue(queue_t queue, void** item) {
 	    (queue->len)--;
 		
 	    //Free element
-		ptr->data = NULL;		//Is a pointer; good practice to set to NULL, but Necessary?
+		/*ptr->data = NULL;		//Is a pointer; good practice to set to NULL, but Necessary?
 	    ptr->next = NULL;
 	    ptr->prev = NULL;
-	    free (ptr);
+	    free (ptr);*/
 
 	    return 0;
 
     } else {
+        // printf("Size = 2+\n");
     	//Identify head
 	    ptr = (queue->head);	
 	    *item = ptr->data;
@@ -114,10 +121,10 @@ queue_dequeue(queue_t queue, void** item) {
 	    (queue->head)->prev = (queue->tail);
 
 	    //Free element
-	    ptr->data = NULL;
+	    /*ptr->data = NULL;
 	    ptr->next = NULL;
 	    ptr->prev = NULL;
-	    free (ptr);
+	    free (ptr);*/
 
 	    return 0;
 	}
@@ -131,8 +138,7 @@ queue_dequeue(queue_t queue, void** item) {
  * argument and the queue element is the second.  Return 0 (success)
  * or -1 (failure).
  */
-int
-queue_iterate(queue_t queue, func_t f, void* item) {
+int queue_iterate(queue_t queue, func_t f, void* item) {
     elem_q* iter;
 
     if (queue == NULL)      //Failure: Null pointer
@@ -157,8 +163,7 @@ queue_iterate(queue_t queue, func_t f, void* item) {
 /*
  * Free the queue and return 0 (success) or -1 (failure).
  */
-int
-queue_free (queue_t queue) {                //MAY NEED WHILE LOOP TO FREE ALL THE ELEMENTS
+int queue_free (queue_t queue) {                //MAY NEED WHILE LOOP TO FREE ALL THE ELEMENTS
     if (queue == NULL) {
     	return -1;
     }
@@ -170,8 +175,7 @@ queue_free (queue_t queue) {                //MAY NEED WHILE LOOP TO FREE ALL TH
 /*
  * Return the number of items in the queue.
  */
-int
-queue_length(queue_t queue) {
+int queue_length(queue_t queue) {
 	if (queue == NULL) {	//Correct?
     	return -1;
     }
@@ -183,8 +187,7 @@ queue_length(queue_t queue) {
  * Delete the specified item from the given queue.
  * Return 0 on success. Return -1 on error.
  */
-int
-queue_delete(queue_t queue, void* item) {
+int queue_delete(queue_t queue, void* item) {
 	elem_q* iter;
 
 	//Nothing to delete
