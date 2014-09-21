@@ -31,10 +31,15 @@ queue_prepend(queue_t queue, void* item) {
     elt->data = item;
     elt->next = (queue->len == 0) ? elt : queue->head;
     elt->prev = (queue->len == 0) ? elt : queue->tail;
+
     //make sure head/tail are defined
     queue->head = elt;
     queue->tail = (queue->len == 0) ? elt : queue->tail;
     (queue->len)++;
+
+    //Need to adjust current head/tail pointers
+    queue->head->prev = elt;
+    queue->tail->next = elt;
 
     return 0;
 }
@@ -52,10 +57,15 @@ queue_append(queue_t queue, void* item) {
     elt->data = item;
     elt->next = (queue->len == 0) ? elt : queue->head;
     elt->prev = (queue->len == 0) ? elt : queue->tail;
+
     //make sure head/tail are defined
     queue->head = (queue->len == 0) ? elt : queue->head;
     queue->tail = elt;
     (queue->len)++;
+
+    //Need to adjust current head/tail's pointers
+    queue->head->prev = elt;
+    queue->tail->next = elt;
 
     return 0;
 }
