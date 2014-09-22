@@ -2,10 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "defs.h"
 #include "synch.h"
-#include "queue.h"
-#include "minithread.h"
+
 
 /*
  *      You must implement the procedures and types defined in this interface.
@@ -14,12 +12,13 @@
 
 /* NOTE: struct semaphore defined in synch.h */
 
+
 /*
  * semaphore_t semaphore_create()
  *      Allocate a new semaphore.
  */
 semaphore_t semaphore_create() {
-    return (semaphore_t) malloc(struct semaphore);    //Is the following a cast: return (semaphore_t)0;
+    return (semaphore_t) malloc(sizeof(struct semaphore));    //Is the following a cast: return (semaphore_t)0;
 }
 
 
@@ -47,7 +46,7 @@ void semaphore_initialize(semaphore_t sem, int cnt) {
 
 	//ARE THESE INITIALIZATIONS ALSO DESIRED HERE? (Currently semaphore_create does no initializations)
 	sem->lock = 0;
-	sem->wait_queue = queue_new;
+	sem->wait_queue = queue_new();
 }
 
 
@@ -56,20 +55,23 @@ void semaphore_initialize(semaphore_t sem, int cnt) {
  *      P on the semaphore.
  */
 void semaphore_P(semaphore_t sem) {		//"Wait"
-	while(atomic_test_and_set(sem->lock) == 1); //Atomically check lock status and leave locked
-	if (--(s->count) < 0) {		//Resource unavailable
+	minithread_t tcb;
+
+	while(atomic_test_and_set(&sem->lock) == 1); //Atomically check lock status and leave locked
+	if (--(sem->count) < 0) {		//Resource unavailable
 		
-		//append calling process to wait queue
-		queue_append(sem->wait_queue, (void*) minithread_self());
+		//Move calling process to wait queue from run_queue
+		tcb = minithread_self();
+		queue_append(sem->wait_queue, (void*) tcb);
 
 		//Release lock
-		s->lock = 0;
+		sem->lock = 0;
 		
 		//context switch to next guy on run_queue
-		minithread_yield();
+		minithread_stop();		//Invariant: I should NOT have been the only guy on the run_queue	//want to STOP here, not yield
 	}
 	else {						//Resource obtained, continue operation
-		s->lock = 0;
+		sem->lock = 0;
 	} 
 }
 
@@ -78,12 +80,15 @@ void semaphore_P(semaphore_t sem) {		//"Wait"
  *      V on the semaphore.
  */
 void semaphore_V(semaphore_t sem) {		//"Signal"
-	while(atomic_test_and_set(sem->lock) == 1); //Atomically check lock status and leave locked
-	if (++(s->count) <= 0) {		//COMMENT?
-		queue_dequeue()
-		//take me off wait queue: I will be at head with FIFO semaphore request
-		//make runnable
-	}
-	s->lock = 0;
+	minithread_t tcb;
 
+	while(atomic_test_and_set(&sem->lock) == 1); //Atomically check lock status and leave locked
+	if (++(sem->count) <= 0) {		//Resource is in demand still
+		//Take me off wait queue: I will be at head if I'm calling this here, with FIFO semaphore request protocol
+		queue_dequeue(sem->wait_queue, (void**) &tcb);
+		
+		//Put me back on run_queue
+		minithread_start(tcb);
+	}
+	sem->lock = 0;
 }

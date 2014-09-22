@@ -6,9 +6,12 @@
 #ifndef __SYNCH_H__
 #define __SYNCH_H__
 
-#include "machineprimitives.h"			//IS THIS OK?
+#include "machineprimitives.h"			//CHECK THAT THESE ARE OK
+#include "queue.h"
+#include "defs.h"
+#include "minithread.h"
 
-/*
+ /*
  * Semaphores.
  */
 typedef struct semaphore *semaphore_t;
@@ -17,7 +20,6 @@ struct semaphore {
 	int count;
 	queue_t wait_queue;			//Wait queue for threads requesting this semaphore
 };
-
 
 /* SEMAPHORE METHODS */
 
@@ -43,13 +45,13 @@ extern void semaphore_initialize(semaphore_t sem, int cnt);
 
 /*
  * semaphore_P(semaphore_t sem)
- *  P on the sempahore.
+ *  P on the semaphore.
  */
 extern void semaphore_P(semaphore_t sem);
 
 /*
  * semaphore_V(semaphore_t sem)
- *  V on the sempahore.
+ *  V on the semaphore.
  */
 extern void semaphore_V(semaphore_t sem);
 
