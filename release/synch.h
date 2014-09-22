@@ -6,16 +6,17 @@
 #ifndef __SYNCH_H__
 #define __SYNCH_H__
 
-
+#include "machineprimitives.h"			//IS THIS OK?
 
 /*
  * Semaphores.
  */
 typedef struct semaphore *semaphore_t;
-//struct semaphore {
-	//
-//};
-
+struct semaphore {
+	tas_lock_t lock;
+	int count;
+	queue_t wait_queue;			//Wait queue for threads requesting this semaphore
+};
 
 
 /* SEMAPHORE METHODS */

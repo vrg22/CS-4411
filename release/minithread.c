@@ -27,9 +27,7 @@
 
 queue_t run_queue = NULL;   //The running queue of tcbs
 minithread_t globaltcb;     //global tcb used for correct context switching
-
 int thread_ctr = 0;         //Counts created threads. Used for ID assignment
-
 
 
 /* minithread functions */
@@ -67,8 +65,8 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     return tcb;
 }
 
-minithread_t minithread_self() {						//NEED TO COMPLETE!
-    return (minithread_t)0;
+minithread_t minithread_self() {						//UNCHECKED!!!
+    return (minithread_t) (run_queue->head->data);
 }
 
 int minithread_id() {               
