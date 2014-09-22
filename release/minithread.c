@@ -96,7 +96,7 @@ void minithread_yield() {
    	if (queue_dequeue(run_queue, (void**) &tcb_old) == -1) return;
     if (queue_append(run_queue, tcb_old) == -1) return;
    	tcb_new = (minithread_t) (run_queue->head->data);
-   	minithread_switch(&(tcb_old->stacktop), &(tcb_new->stacktop));
+   	minithread_switch(&(tcb_old->stacktop), &(tcb_new->stacktop));    //IF ONLY ONE GUY ON THE PROCESS QUEUE, AVOID...
 }
 
 /*
