@@ -85,46 +85,28 @@ int queue_dequeue(queue_t queue, void** item) {
 	if (queue->len == 0) {
 		*item = NULL;
 		return -1;
+	}
 
-	} else if (queue->len == 1) {
-		//Identify head
-		ptr = (queue->head);
-	    *item = ptr->data;
+    // Identify head
+    ptr = queue->head;
+    *item = ptr->data;
 
-	    //Update Queue
+    if (queue->len == 1) {
+	    // Update Queue
 	    queue->head = NULL;
 	    queue->tail = NULL;
-	    (queue->len)--;
-		
-	    //Free element
-		/*ptr->data = NULL;                       //CHECK!!!
-	    ptr->next = NULL;
-	    ptr->prev = NULL;
-	    free (ptr);*/
-
-	    return 0;
-
     } else {
-       	//Identify head
-	    ptr = (queue->head);	
-	    *item = ptr->data;
-
-	    //Update head
-	    queue->head = (queue->head)->next;
-	    (queue->len)--;
+        // Update head
+	    queue->head = queue->head->next;
 	    
-	    //Correct new Head/Tail
-	    (queue->tail)->next = (queue->head);
-	    (queue->head)->prev = (queue->tail);
-
-	    //Free element                             //CHECK!!!
-	    /*ptr->data = NULL;
-	    ptr->next = NULL;
-	    ptr->prev = NULL;
-	    free (ptr);*/
-
-	    return 0;
+	    // Correct new Head/Tail
+	    queue->tail->next = queue->head;
+	    queue->head->prev = queue->tail;
 	}
+
+    (queue->len)--;
+
+    return 0;
 }
 
 
@@ -138,20 +120,20 @@ int queue_dequeue(queue_t queue, void** item) {
 int queue_iterate(queue_t queue, func_t f, void* item) {
     elem_q* iter;
 
-    if (queue == NULL)      //Failure: Null pointer
+    if (queue == NULL)      // Failure: Null pointer
         return -1;
 
-    if (queue->len == 0)    //nothing to do
+    if (queue->len == 0)    // Nothing to do
         return 0;
 
     iter = queue->head;
     while(iter->next != queue->head){
-        //Run Function
+        // Run Function
         f(item, iter->data);
         iter = iter->next;
     }
     
-    //Run Function on final element
+    // Run Function on final element
     f(item, iter->data);
 
     return 0;
@@ -161,12 +143,12 @@ int queue_iterate(queue_t queue, func_t f, void* item) {
 /*
  * Free the queue and return 0 (success) or -1 (failure).
  */
-int queue_free (queue_t queue) {                //MAY NEED WHILE LOOP TO FREE ALL THE ELEMENTS
+int queue_free (queue_t queue) {                // MAY NEED WHILE LOOP TO FREE ALL THE ELEMENTS
     if (queue == NULL) {
     	return -1;
     }
     free (queue);
-    queue = NULL;   //Make queue a NULL pointer     //Correct?
+    queue = NULL;   // Make queue a NULL pointer     //Correct?
     return 0;
 }
 
