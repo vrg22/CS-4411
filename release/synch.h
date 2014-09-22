@@ -7,15 +7,18 @@
 #define __SYNCH_H__
 
 
+
+/*
+ * Semaphores.
+ */
 typedef struct semaphore *semaphore_t;
 //struct semaphore {
 	//
 //};
 
 
-/*
- * Semaphores.
- */
+
+/* SEMAPHORE METHODS */
 
 /*
  * semaphore_t semaphore_create()

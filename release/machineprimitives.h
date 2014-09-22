@@ -73,7 +73,7 @@ extern void minithread_initialize_stack(stack_pointer_t *stacktop,
 
 /*
 This function marks the calling thread as "dead" or done executing. However, its stack space cannot
-be freed by itself. The scheduler frees the function's stack 
+be freed by itself. The scheduler frees the function's stack space in .... (TBD)
 
 This function is better known as the "final_proc" called in minithread_initialize_stack.
 

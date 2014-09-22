@@ -84,11 +84,9 @@ int queue_dequeue(queue_t queue, void** item) {
 
 	if (queue->len == 0) {
 		*item = NULL;
-        // printf("Size = 0\n");
 		return -1;
 
 	} else if (queue->len == 1) {
-        // printf("Size = 1\n");
 		//Identify head
 		ptr = (queue->head);
 	    *item = ptr->data;
@@ -99,7 +97,7 @@ int queue_dequeue(queue_t queue, void** item) {
 	    (queue->len)--;
 		
 	    //Free element
-		/*ptr->data = NULL;		//Is a pointer; good practice to set to NULL, but Necessary?
+		/*ptr->data = NULL;                       //CHECK!!!
 	    ptr->next = NULL;
 	    ptr->prev = NULL;
 	    free (ptr);*/
@@ -107,8 +105,7 @@ int queue_dequeue(queue_t queue, void** item) {
 	    return 0;
 
     } else {
-        // printf("Size = 2+\n");
-    	//Identify head
+       	//Identify head
 	    ptr = (queue->head);	
 	    *item = ptr->data;
 
@@ -120,7 +117,7 @@ int queue_dequeue(queue_t queue, void** item) {
 	    (queue->tail)->next = (queue->head);
 	    (queue->head)->prev = (queue->tail);
 
-	    //Free element
+	    //Free element                             //CHECK!!!
 	    /*ptr->data = NULL;
 	    ptr->next = NULL;
 	    ptr->prev = NULL;
@@ -160,6 +157,7 @@ int queue_iterate(queue_t queue, func_t f, void* item) {
     return 0;
 }
 
+
 /*
  * Free the queue and return 0 (success) or -1 (failure).
  */
@@ -171,6 +169,7 @@ int queue_free (queue_t queue) {                //MAY NEED WHILE LOOP TO FREE AL
     queue = NULL;   //Make queue a NULL pointer     //Correct?
     return 0;
 }
+
 
 /*
  * Return the number of items in the queue.

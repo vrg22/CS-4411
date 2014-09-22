@@ -4,6 +4,12 @@
 #ifndef __QUEUE_H__
 #define __QUEUE_H__
 
+
+/*
+*	elem_q is a type that allows the queue implementation to be a Doubly-linked list.
+*	An elem_q contains pointers to the adjacent elem_q's and also a pointer to an
+*	unspecified data.
+*/
 typedef struct elem_q elem_q;
 struct elem_q {
     void* data;

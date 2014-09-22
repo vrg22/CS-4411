@@ -1,6 +1,6 @@
 /* test-queue.c
 
-   Test the implementation of queue
+   Test the implementation of queue.
 */
 
 #include "queue.h"
