@@ -28,6 +28,7 @@
 queue_t run_queue = NULL;   //The running queue of tcbs
 minithread_t globaltcb;     //global tcb used for correct context switching
 int thread_ctr = 0;         //Counts created threads. Used for ID assignment
+minithread_t current;
 
 
 /* minithread functions */
@@ -42,14 +43,13 @@ minithread_t minithread_fork(proc_t proc, arg_t arg) {               //CHECK!
 minithread_t minithread_create(proc_t proc, arg_t arg) {
     minithread_t tcb;
 
-    //if (proc == NULL) return NULL;  //fail if process pointer is NULL
     if (proc == NULL) {
       printf("something's really wrong...\n");
       return NULL;
     }   //fail if process pointer is NULL
 
     tcb = malloc(sizeof(struct minithread));
-    //if (tcb == NULL) return NULL;   //malloc failed
+
     if (tcb == NULL) {
       printf("something's really wrong...\n");
       return NULL;
@@ -58,14 +58,14 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     tcb->id = ++thread_ctr;
     tcb->func = proc;
     tcb->arg = arg;
+    tcb->dead = 0;
     
     minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); 						//allocate fresh stack
     minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, (arg_t) tcb);		//initialize stack w/ proc & cleanup function
-    																						//CHECK arg to minithread exit!
     return tcb;
 }
 
-minithread_t minithread_self() {						//UNCHECKED!!!
+minithread_t minithread_self() { // Return current instead?
     return (minithread_t) (run_queue->head->data);
 }
 
@@ -78,13 +78,14 @@ int minithread_id() {
 }
 
 void minithread_stop() {
-	//Prevent calling thread from running again w/o explicit OS permission
-	minithread_t tcb_old, tcb_new;
-	tcb_old = NULL;
-  if (queue_dequeue(run_queue, (void**) &tcb_old) == -1) return;
-  tcb_new = (minithread_t) (run_queue->head->data);
-  minithread_switch(&(tcb_old->stacktop), &(tcb_new->stacktop));
-  //DO WE WANT TO FREE?
+  minithread_t tcb_old;
+
+  /* Remove current process from head of run_queue */
+  if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
+    printf("ERROR: minithread_stop() failed to dequeue current process from head of run_queue");
+    return;
+  }
+	minithread_next(tcb_old); // Jump to next ready process
 }
 
 void minithread_start(minithread_t t) {
@@ -92,11 +93,19 @@ void minithread_start(minithread_t t) {
 }
 
 void minithread_yield() {
-   	minithread_t tcb_old, tcb_new;
-   	if (queue_dequeue(run_queue, (void**) &tcb_old) == -1) return;
-    if (queue_append(run_queue, tcb_old) == -1) return;
-   	tcb_new = (minithread_t) (run_queue->head->data);
-   	minithread_switch(&(tcb_old->stacktop), &(tcb_new->stacktop));    //IF ONLY ONE GUY ON THE PROCESS QUEUE, AVOID...
+  minithread_t tcb_old;
+
+  /* Move current process (at head of run_queue) to tail of run_queue */
+  if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
+    printf("ERROR: minithread_yield() failed to dequeue current process from head of run_queue");
+    return;
+  }
+  if (queue_append(run_queue, tcb_old) < 0) {
+    printf("ERROR: minithread_yield() failed to append current process to end of run_queue");
+    return;
+  }
+
+  minithread_next(tcb_old); // Jump to next ready process
 }
 
 /*
@@ -114,8 +123,6 @@ void minithread_yield() {
  *
  */
 void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
-    minithread_t tcb;
-
     //Create running queue
     if (run_queue == NULL) run_queue = queue_new();
     
@@ -125,13 +132,46 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
 
     //Create and schedule first tcb
-    minithread_fork(mainproc, mainarg);
+    current = minithread_fork(mainproc, mainarg);
+
+    while (1) {
+      if (queue_length(run_queue) > 0) {
+        // printf("Queue length: %i\n", queue_length(run_queue));
+        if ((current != NULL) && (current->dead == 1)) {
+          // Remove current process from head of run_queue
+          if (queue_dequeue(run_queue, (void**) &current) < 0) {
+            printf("ERROR: minithread_system_initialize() failed to dequeue current process from head of run_queue\n");
+          }
+          minithread_deallocate(current);
+          current = globaltcb;
+        } else {
+          minithread_next(globaltcb);
+        }
+      }
+    }
+
 
     //Run FIFO from running queue
-    while (queue_length(run_queue) > 0) {          
+    /*while (queue_length(run_queue) > 0) {          
       tcb = (minithread_t) (run_queue->head->data);
       minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));
       if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;
-    }
-    
+    }*/    
+}
+
+/* type = 1 then calling from globaltcb */
+
+void minithread_next(minithread_t self) {
+
+  if (queue_length(run_queue) > 0) {
+    // printf("About to switch\n");
+    current = run_queue->head->data;
+    minithread_switch(&(self->stacktop), &(current->stacktop));
+  } else {
+    printf("ERROR: minithread_next() called on empty run_queue");
+  }
+}
+
+void minithread_deallocate(minithread_t thread) {
+  free(thread);
 }

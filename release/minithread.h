@@ -22,6 +22,7 @@
 typedef struct minithread *minithread_t;
 struct minithread {
 	int id;
+	int dead;
 
 	stack_pointer_t stackbase;
 	stack_pointer_t stacktop;
@@ -109,6 +110,10 @@ extern void minithread_unlock_and_stop(tas_lock_t* lock);
  * sleep with timeout in microseconds
  */
 extern void minithread_sleep_with_timeout(int delay);
+
+extern void minithread_next(minithread_t self);
+
+extern void minithread_deallocate(minithread_t thread);
 
 
 #endif /*__MINITHREAD_H__*/
