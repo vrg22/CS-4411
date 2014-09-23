@@ -110,7 +110,6 @@ int queue_dequeue(queue_t queue, void** item) {
 }
 
 
-
 /*
  * Iterate the function parameter over each element in the queue.  The
  * additional void* argument is passed to the function as its first
@@ -143,7 +142,9 @@ int queue_iterate(queue_t queue, func_t f, void* item) {
 /*
  * Free the queue and return 0 (success) or -1 (failure).
  */
-int queue_free (queue_t queue) {                // MAY NEED WHILE LOOP TO FREE ALL THE ELEMENTS
+int queue_free (queue_t queue) {
+    // queue_iterate(queue, free, NULL);
+
     if (queue == NULL) {
     	return -1;
     }

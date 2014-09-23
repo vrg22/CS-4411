@@ -118,7 +118,6 @@ void minithread_initialize_stack(stack_pointer_t *stacktop, proc_t body_proc, ar
 
 /*
 * Freeing function. See machineprimitives.h for explanation.
-*
 */
 int minithread_exit(arg_t arg) {
   ((minithread_t) arg)->dead = 1;

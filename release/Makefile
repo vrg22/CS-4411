@@ -12,7 +12,7 @@ default: all
 # this would be a good place to add your tests
 #
 # Test cases: test-queue.c 
-all: test1 test2 test3 buffer sieve test-queue	
+all: test1 test2 test3 buffer sieve test-queue shop
 
 # running "make clean" will remove all files ignored by git.  To ignore more
 # files, you should add them to the file .gitignore

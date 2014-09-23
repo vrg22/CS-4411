@@ -25,15 +25,15 @@
 
 /* LOCAL SCHEDULER VARIABLES */
 
-queue_t run_queue = NULL;   //The running queue of tcbs
-minithread_t globaltcb;     //global tcb used for correct context switching
-int thread_ctr = 0;         //Counts created threads. Used for ID assignment
-minithread_t current;
+queue_t run_queue = NULL;   // The running queue of tcbs
+minithread_t globaltcb;     // Main TCB that contains the "OS" thread
+int thread_ctr = 0;         // Counts created threads. Used for ID assignment
+minithread_t current;       // Keeps track of the currently running minithread
 
 
 /* minithread functions */
 
-minithread_t minithread_fork(proc_t proc, arg_t arg) {               //CHECK!
+minithread_t minithread_fork(proc_t proc, arg_t arg) {
     minithread_t tcb = minithread_create(proc, arg);
     if (tcb == NULL) return NULL;
     minithread_start(tcb);
@@ -43,25 +43,28 @@ minithread_t minithread_fork(proc_t proc, arg_t arg) {               //CHECK!
 minithread_t minithread_create(proc_t proc, arg_t arg) {
     minithread_t tcb;
 
-    if (proc == NULL) {
-      printf("something's really wrong...\n");
+    if (proc == NULL) { // Fail if process pointer is NULL
+      printf("ERROR: minithread_create() passed a NULL process pointer\n");
       return NULL;
-    }   //fail if process pointer is NULL
+    }
 
     tcb = malloc(sizeof(struct minithread));
 
-    if (tcb == NULL) {
-      printf("something's really wrong...\n");
+    if (tcb == NULL) { // Fail if malloc() fails
+      printf("ERROR: minithread_create() failed to malloc new TCB\n");
       return NULL;
-    }   //malloc failed
+    }
 
+    // Set TCB properties
     tcb->id = ++thread_ctr;
     tcb->func = proc;
     tcb->arg = arg;
     tcb->dead = 0;
     
-    minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); 						//allocate fresh stack
-    minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, (arg_t) tcb);		//initialize stack w/ proc & cleanup function
+    // Set up TCB stack
+    minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); // Allocate new stack
+    minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, (arg_t) tcb); // Initialize stack with proc & cleanup functions
+    
     return tcb;
 }
 
@@ -71,7 +74,7 @@ minithread_t minithread_self() { // Return current instead?
 
 int minithread_id() {               
     minithread_t tcb;
-    if (queue_length(run_queue) == 0) return -1;			//No running thread
+    if (queue_length(run_queue) == 0) return -1; // No running thread
     
     tcb = (minithread_t) (run_queue->head->data);
     return tcb->id;
@@ -89,7 +92,7 @@ void minithread_stop() {
 }
 
 void minithread_start(minithread_t t) {
-	if (queue_append(run_queue, t) == -1) return;			//WORKS WITH APPEND, fails with PREPEND
+	if (queue_append(run_queue, t) == -1) return;
 }
 
 void minithread_yield() {
@@ -123,29 +126,30 @@ void minithread_yield() {
  *
  */
 void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
-    //Create running queue
-    if (run_queue == NULL) run_queue = queue_new();
+    if (run_queue == NULL) run_queue = queue_new(); // Create ready queue
     
-    //Create context-switching tcb
+    // Create "OS"/kernel TCB
     globaltcb = (minithread_t) malloc(sizeof(struct minithread));
-    if (globaltcb == NULL) return;
+    if (globaltcb == NULL) { // Fail if malloc() fails
+      printf("ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
+      return;
+    }
     minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
 
-    //Create and schedule first tcb
+    // Create and schedule first minithread
     current = minithread_fork(mainproc, mainarg);
 
     while (1) {
-      if (queue_length(run_queue) > 0) {
-        // printf("Queue length: %i\n", queue_length(run_queue));
-        if ((current != NULL) && (current->dead == 1)) {
+      if (queue_length(run_queue) > 0) { // Only take action if ready queue is not empty
+        if ((current != NULL) && (current->dead == 1)) { // Destory former process if it was marked as dead
           // Remove current process from head of run_queue
           if (queue_dequeue(run_queue, (void**) &current) < 0) {
             printf("ERROR: minithread_system_initialize() failed to dequeue current process from head of run_queue\n");
           }
           minithread_deallocate(current);
-          current = globaltcb;
+          current = globaltcb; // Update current thread pointer
         } else {
-          minithread_next(globaltcb);
+          minithread_next(globaltcb); // Select next ready process
         }
       }
     }
@@ -159,16 +163,14 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     }*/    
 }
 
-/* type = 1 then calling from globaltcb */
-
 void minithread_next(minithread_t self) {
 
   if (queue_length(run_queue) > 0) {
-    // printf("About to switch\n");
-    current = run_queue->head->data;
-    minithread_switch(&(self->stacktop), &(current->stacktop));
+    current = run_queue->head->data; // Update current thread pointer to next ready process
+    minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
   } else {
     printf("ERROR: minithread_next() called on empty run_queue");
+    minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
   }
 }
 

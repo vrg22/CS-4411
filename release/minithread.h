@@ -111,6 +111,10 @@ extern void minithread_unlock_and_stop(tas_lock_t* lock);
  */
 extern void minithread_sleep_with_timeout(int delay);
 
+
+/*
+ * Selects next ready process.  Acts as the scheduler, but does not deallocate dead threads
+ */
 extern void minithread_next(minithread_t self);
 
 extern void minithread_deallocate(minithread_t thread);
