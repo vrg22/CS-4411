@@ -9,6 +9,7 @@
  */
 #include <stdlib.h>
 #include <stdio.h>
+#include "interrupts.h"
 #include "minithread.h"
 #include "queue.h"
 #include "synch.h"
@@ -112,6 +113,17 @@ void minithread_yield() {
 }
 
 /*
+ * This is the clock interrupt handling routine.
+ * You have to call minithread_clock_init with this
+ * function as parameter in minithread_system_initialize
+ */
+void 
+clock_handler(void* arg)
+{
+
+}
+
+/*
  * Initialization.
  *
  *      minithread_system_initialize:
@@ -153,15 +165,22 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
         }
       }
     }
+  }
 
+/*
+ * sleep with timeout in milliseconds
+ */
+
+void minithread_sleep_with_timeout(int delay) {
+
+}
 
     //Run FIFO from running queue
     /*while (queue_length(run_queue) > 0) {          
       tcb = (minithread_t) (run_queue->head->data);
       minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));
       if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;
-    }*/    
-}
+    }*/
 
 void minithread_next(minithread_t self) {
 
