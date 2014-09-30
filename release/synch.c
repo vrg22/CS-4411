@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "synch.h"
-
+#include "interrupts.h"
 
 /*
  *      You must implement the procedures and types defined in this interface.
@@ -26,8 +26,12 @@ semaphore_t semaphore_create() {
  * semaphore_destroy(semaphore_t sem);
  *      Deallocate a semaphore.
  */
-void semaphore_destroy(semaphore_t sem) {		//CHECK
-	//Cases: queue is not empty when this is called: BAD!	... what else could go wrong?
+void semaphore_destroy(semaphore_t sem) {
+	if (sem == NULL){
+		printf("Tried to destroy null semaphore.\n");
+		return;
+	}
+	queue_free(sem->wait_queue);		//What if queue nonempty when call destroy?
 	free(sem);
 }
 
@@ -57,6 +61,8 @@ void semaphore_initialize(semaphore_t sem, int cnt) {
 void semaphore_P(semaphore_t sem) {		//"Wait"
 	minithread_t tcb;
 
+	interrupt_level_t old_ilevel = set_interrupt_level((interrupt_level_t) DISABLED);	//Disable Interrupt
+
 	while(atomic_test_and_set(&sem->lock) == 1); //Atomically check lock status and leave locked
 	if (--(sem->count) < 0) {		//Resource unavailable
 		
@@ -72,8 +78,11 @@ void semaphore_P(semaphore_t sem) {		//"Wait"
 	}
 	else {						//Resource obtained, continue operation
 		sem->lock = 0;
-	} 
+	}
+
+	set_interrupt_level(old_ilevel);													//Enable Interrupt
 }
+
 
 /*
  * semaphore_V(semaphore_t sem)
@@ -81,6 +90,8 @@ void semaphore_P(semaphore_t sem) {		//"Wait"
  */
 void semaphore_V(semaphore_t sem) {		//"Signal"
 	minithread_t tcb;
+
+	interrupt_level_t old_ilevel = set_interrupt_level((interrupt_level_t) DISABLED);	//Disable Interrupt
 
 	while(atomic_test_and_set(&sem->lock) == 1); //Atomically check lock status and leave locked
 	if (++(sem->count) <= 0) {		//Resource is in demand still
@@ -91,4 +102,7 @@ void semaphore_V(semaphore_t sem) {		//"Signal"
 		minithread_start(tcb);
 	}
 	sem->lock = 0;
+
+	set_interrupt_level(old_ilevel);													//Enable Interrupt
+
 }
