@@ -117,10 +117,7 @@ void minithread_yield() {
  * You have to call minithread_clock_init with this
  * function as parameter in minithread_system_initialize
  */
-void 
-clock_handler(void* arg)
-{
-
+void clock_handler(void* arg) {
 }
 
 /*
@@ -172,7 +169,6 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
  */
 
 void minithread_sleep_with_timeout(int delay) {
-
 }
 
     //Run FIFO from running queue

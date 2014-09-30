@@ -95,8 +95,7 @@ interrupt_level_t set_interrupt_level(interrupt_level_t newlevel) {
  * The signals are handled on their own stack to reduce
  * chances of an overrun.
  */
-void
-minithread_clock_init(int period, interrupt_handler_t clock_handler){
+void minithread_clock_init(int period, interrupt_handler_t clock_handler) {
     timer_t timerid;
     struct sigevent sev;
     struct itimerspec its;
@@ -107,18 +106,18 @@ minithread_clock_init(int period, interrupt_handler_t clock_handler){
     sem_init(&interrupt_received_sema,0,0);
 
     ss.ss_sp = malloc(SIGSTKSZ);
-    if (ss.ss_sp == NULL){
+    if (ss.ss_sp == NULL) {
         perror("malloc.");
         abort();
     }
     ss.ss_size = SIGSTKSZ;
     ss.ss_flags = 0;
-    if (sigaltstack(&ss, NULL) == -1){
+    if (sigaltstack(&ss, NULL) == -1) {
         perror("signal stack");
         abort();
     }
 
-    if(DEBUG)
+    if (DEBUG)
         printf("SIGRTMAX = %d\n",SIGRTMAX);
 
     /* Establish handler for timer signal */
@@ -153,9 +152,7 @@ minithread_clock_init(int period, interrupt_handler_t clock_handler){
  * This function handles a signal and invokes the specified interrupt
  * handler, ensuring that signals are unmasked first.
  */
-void
-handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
-{
+void handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext) {
     uint64_t eip = ucontext->uc_mcontext.gregs[RIP];
     /*
      * This allows us to check the interrupt level
@@ -166,9 +163,7 @@ handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
      * interfering with our other check for library
      * calls.
      */
-    if(interrupt_level==ENABLED &&
-            eip > (uint64_t)start &&
-            eip < (uint64_t)end){
+    if (interrupt_level==ENABLED && eip > (uint64_t)start && eip < (uint64_t)end) {
 
         unsigned long *newsp;
         /*
@@ -182,7 +177,7 @@ handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
          */
 #define ROUND(X,Y)   (((unsigned long)X) & ~(Y-1)) /* Y must be a power of 2 */
         newsp = (unsigned long *) ROUND(newsp, 16);
-        if(ucontext->uc_mcontext.fpregs!=0){
+        if (ucontext->uc_mcontext.fpregs!=0){
             newsp -= sizeof(struct _fpstate)/sizeof(long);
             memcpy(newsp,ucontext->uc_mcontext.fpregs,sizeof(struct _fpstate));
             ucontext->uc_mcontext.fpregs = (void *)newsp;
@@ -199,40 +194,37 @@ handle_interrupt(int sig, siginfo_t *si, ucontext_t *ucontext)
          * and our stack pointer is at the return address we just pushed onto
          * the stack.
          */
-        if(sig==SIGRTMAX-2){
+        if (sig==SIGRTMAX-2) {
             ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp;
             ucontext->uc_mcontext.gregs[RIP]=(unsigned long)((interrupt_t*)si->si_value.sival_ptr)->handler;
             ucontext->uc_mcontext.gregs[RDI]=(unsigned long)((interrupt_t*)si->si_value.sival_ptr)->arg;
             set_interrupt_level(DISABLED);
-        }
-        else if(sig==SIGRTMAX-1){
+        } else if (sig==SIGRTMAX-1) {
             ucontext->uc_mcontext.gregs[RSP]=(unsigned long)newsp;
             ucontext->uc_mcontext.gregs[RIP]=(unsigned long)mini_clock_handler;
             ucontext->uc_mcontext.gregs[RDI]=(unsigned long)0;
             if(DEBUG)
                 printf("SP=%p\n",newsp);
-        }
-        else {
+        } else {
             printf("UNKNOWN SIGNAL\n");
             fflush(stdout);
             abort();
         }
-        if(sig==SIGRTMAX-2)
+        if (sig==SIGRTMAX-2)
             signal_handled = 1;
     }
 
-    if(sig==SIGRTMAX-2){
+    if (sig==SIGRTMAX-2) {
         if(DEBUG)
             printf("Signal received\n");
         sem_post(&interrupt_received_sema);
     }
 }
 
-void send_interrupt(int interrupt_type, interrupt_handler_t handler, void* arg){
-
+void send_interrupt(int interrupt_type, interrupt_handler_t handler, void* arg) {
     interrupt_t interrupt;
     pthread_mutex_lock(&signal_mutex);
-    for (;;){
+    for (;;) {
         signal_handled = 0;
 
         interrupt.arg = arg;
@@ -252,7 +244,7 @@ void send_interrupt(int interrupt_type, interrupt_handler_t handler, void* arg){
         sem_wait(&interrupt_received_sema);
 
         /* Check if interrupt was handled */
-        if(signal_handled)
+        if (signal_handled)
             break;
 
         sleep(0);
