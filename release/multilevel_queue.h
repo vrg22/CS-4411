@@ -14,7 +14,8 @@
 typedef struct multilevel_queue* multilevel_queue_t;
 struct multilevel_queue {
 	int  num_levels;
-	queue_t *levels;		// queue_t levels[];
+	queue_t* levels;
+	//size
 };
 
 
