@@ -1,4 +1,4 @@
-/* test-queue.c
+/* queue_test.c
 
    Test the implementation of queue.
 */

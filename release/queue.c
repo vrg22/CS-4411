@@ -91,7 +91,7 @@ int queue_dequeue(queue_t queue, void** item) {
 
     if (queue->len == 0) {      //Empty queue
 		*item = NULL;
-		return 0;
+		return -1;              // Failure: nothing to dequeue
 	}
 
     // Identify head
