@@ -6,8 +6,6 @@
  * prototypes, though you may have to modify some other files to do so.
  */
 
- extern queue_t alarm_queue; // Queue containing alarms (soonest deadline at head of queue)
-
 
 /* An alarm_handler_t is a function that will run within the interrupt handler.
  * It must not block, and it must not perform I/O or any other long-running
@@ -19,7 +17,8 @@ typedef void *alarm_id;
 typedef struct alarm *alarm_t;
 struct alarm {
 	int deadline;
-	minithread_t* thread;
+	int executed;
+	void* thread;
 };
 
 /* register an alarm to go off in "delay" milliseconds.  Returns a handle to

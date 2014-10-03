@@ -13,6 +13,7 @@
 #include "minithread.h"
 #include "queue.h"
 #include "synch.h"
+#include "alarm.h"
 
 #include <assert.h>
 
@@ -34,7 +35,7 @@ minithread_t current;       // Keeps track of the currently running minithread
 /* CLOCK VARIABLES */
 int clk_period = SECOND;    // Clock interrupt period
 long clk_count = 0;         // Running count of clock interrupts
-queue_t alarm_queue;        // Queue containing alarms (soonest deadline at head of queue)
+// queue_t alarm_queue;        // Queue containing alarms (soonest deadline at head of queue)
 
 
 /* minithread functions */
@@ -125,7 +126,7 @@ void minithread_yield() {
 void clock_handler(void* arg) {
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
   clk_count++; // Increment clock count
-  // Check alarms
+  // if (clk_count % 10 == 0) printf("Count");
   set_interrupt_level(old_level); // Restore old interrupt level
 }
 
@@ -160,7 +161,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     /* Set up clock and alarms */
     minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
     set_interrupt_level(ENABLED);
-    alarm_queue = queue_new();
+    //alarm_queue = queue_new();
 
 
     while (1) {
@@ -184,6 +185,10 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
  */
 
 void minithread_sleep_with_timeout(int delay) {
+  minithread_t tcb;
+  queue_dequeue(run_queue, (void**) &tcb); // Remove current thread from running queue
+  queue_append(wait_queue, tcb); // Add current thread to wait queue
+  register_alarm(delay, (alarm_handler_t) &minithread_wake, minithread_self()); // Add alarm to wake current thread
 }
 
     //Run FIFO from running queue
@@ -216,4 +221,8 @@ int minithread_exit(arg_t arg) {
 
   minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
   return 0;
+}
+
+int minithread_wake(minithread_t thread) {
+  return queue_append(run_queue, thread);
 }

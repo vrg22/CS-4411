@@ -31,6 +31,11 @@ struct minithread {
 	arg_t arg;
 };
 
+/* CLOCK VARIABLES */
+extern int clk_period;    		// Clock interrupt period
+extern long clk_count;			// Running count of clock interrupts
+// extern queue_t alarm_queue;		// Queue containing alarms (soonest deadline at head of queue)
+
 /*
  * minithread_t
  * minithread_fork(proc_t proc, arg_t arg)
@@ -117,6 +122,9 @@ This function is better known as the "final_proc" called in minithread_initializ
 
 */
 extern int minithread_exit(arg_t arg);
+
+
+extern int minithread_wake(minithread_t thread);
 
 
 #endif /*__MINITHREAD_H__*/
