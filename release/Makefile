@@ -12,7 +12,7 @@ default: all
 # this would be a good place to add your tests
 #
 # Test cases: queue_test.c 
-all: test1 test2 test3 buffer sieve queue_test shop
+all: test1 test2 test3 buffer sieve queue_test shop multilevel_queue_test
 
 # running "make clean" will remove all files ignored by git.  To ignore more
 # files, you should add them to the file .gitignore
@@ -36,7 +36,8 @@ OBJ =                              \
     random.o                       \
     alarm.o                        \
     queue.o                        \
-    synch.o
+    synch.o 					   \
+    multilevel_queue.o
 
 %: %.o start.o end.o $(OBJ) $(SYSTEMOBJ)
 	$(CC) $(LIB) -o $@ start.o $(filter-out start.o end.o $(SYSTEMOBJ), $^) end.o $(SYSTEMOBJ) $(LFLAGS)

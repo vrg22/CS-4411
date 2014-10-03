@@ -10,19 +10,22 @@
  */
 multilevel_queue_t multilevel_queue_new(int number_of_levels) {
 	multilevel_queue_t ml_queue;
-	queue_t queue;
+	queue_t lvls[number_of_levels];
 	int i;
 
 	ml_queue = (multilevel_queue_t) malloc(sizeof(struct multilevel_queue));	// Malloc the multilevel queue
 	if (ml_queue == NULL) return NULL;	// malloc failure
 
 	ml_queue->num_levels = number_of_levels;
+	ml_queue->levels = /*&*/lvls/*[0]*/;		//queue_t array declaration
+										//queue_t (ml_queue->levels)[ml_queue->num_levels];
 	//Create each level's queue
 	for (i = 0; i < number_of_levels; i++) {
 		(ml_queue->levels)[i] = queue_new();
 		if ((ml_queue->levels)[i] == NULL) return NULL;	// malloc failure
+		printf("level: %i, len: %i\n", i, queue_length((ml_queue->levels)[i]));
 	}
-
+	printf("Levels Queue Ptr: %p\n", ml_queue->levels);
 	return ml_queue;
 }
 
@@ -32,7 +35,23 @@ multilevel_queue_t multilevel_queue_new(int number_of_levels) {
  */
 int multilevel_queue_enqueue(multilevel_queue_t queue, int level, void* item) {
 	queue_t q;
-	q = (queue->levels)[level];
+	int i = 1;
+
+	printf("Item Queue Ptr: %p\n", item);
+	printf("Levels Queue Ptr: %p\n", queue->levels);
+	q = (queue->levels)[0];//level
+	printf("THE level Queue Ptr: %p\n", q);
+	printf("level: %i, len: %i\n", level, queue_length((queue->levels)[2]));//GETS MESSED UP!
+	printf("level: %i, len: %i\n", level, queue_length((queue->levels)[level]));
+	// if (q != NULL){
+	// 	printf("level: %i, len: %i\n", level, queue_length(q));
+	// }
+
+	if (queue_prepend(q, (void*) &i) == -1) {
+		printf("BAD!\n");
+	}
+	queue_dequeue(q, (void*) &item);
+	printf("ADFSAF\n");
 	return queue_append(q, item);
 }
 
@@ -69,5 +88,10 @@ int multilevel_queue_dequeue(multilevel_queue_t queue, int level, void** item) {
  */
 int multilevel_queue_free(multilevel_queue_t queue) {			//CHECK!
 	//Assume programmer will free up each level's queue
+	if (queue == NULL){
+		return -1;
+	}
+
 	free (queue);
+	return 0;
 }
