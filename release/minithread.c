@@ -31,6 +31,11 @@ minithread_t globaltcb;     // Main TCB that contains the "OS" thread
 int thread_ctr = 0;         // Counts created threads. Used for ID assignment
 minithread_t current;       // Keeps track of the currently running minithread
 
+/* CLOCK VARIABLES */
+int clk_period = SECOND;    // Clock interrupt period
+long clk_count = 0;         // Running count of clock interrupts
+queue_t alarm_queue;        // Queue containing alarms (soonest deadline at head of queue)
+
 
 /* minithread functions */
 
@@ -118,9 +123,10 @@ void minithread_yield() {
  * function as parameter in minithread_system_initialize
  */
 void clock_handler(void* arg) {
-  interrupt_level_t old_ilevel = set_interrupt_level(DISABLED);
-  // do shit
-  set_interrupt_level(old_ilevel);
+  interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
+  clk_count++; // Increment clock count
+  // Check alarms
+  set_interrupt_level(old_level); // Restore old interrupt level
 }
 
 /*
@@ -151,7 +157,11 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     // Create and schedule first minithread
     current = minithread_fork(mainproc, mainarg);
 
-    minithread_clock_init(2 * SECOND, (interrupt_handler_t) &clock_handler);
+    /* Set up clock and alarms */
+    minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
+    set_interrupt_level(ENABLED);
+    alarm_queue = queue_new();
+
 
     while (1) {
       if (queue_length(run_queue) > 0) { // Only take action if ready queue is not empty
