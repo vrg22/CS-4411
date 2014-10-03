@@ -11,7 +11,7 @@
  */
 queue_t queue_new() {
     queue_t queue = malloc(sizeof(struct queue));
-    if (queue == NULL) return NULL;
+    if (queue == NULL) return NULL;   // malloc failure
     
     queue->len = 0;
     return queue;
@@ -22,7 +22,10 @@ queue_t queue_new() {
  * 0 (success) or -1 (failure).
  */
 int queue_prepend(queue_t queue, void* item) {
-    elem_q* elem = (elem_q*) malloc(sizeof(elem_q));
+    elem_q* elem;
+    if (queue == NULL) return -1;   // Failure: queue null
+
+    elem = (elem_q*) malloc(sizeof(elem_q));
     if (elem == NULL) {
         return -1;
     }
@@ -51,7 +54,10 @@ int queue_prepend(queue_t queue, void* item) {
  * 0 (success) or -1 (failure).
  */
 int queue_append(queue_t queue, void* item) {
-    elem_q* elem = (elem_q*) malloc(sizeof(elem_q));
+    elem_q* elem;
+    if (queue == NULL) return -1;   // Failure: queue null
+
+    elem = (elem_q*) malloc(sizeof(elem_q));
     if (elem == NULL) {
         return -1;
     }
@@ -81,10 +87,11 @@ int queue_append(queue_t queue, void* item) {
  */
 int queue_dequeue(queue_t queue, void** item) {
 	elem_q* ptr;
+	if (queue == NULL) return -1;   // Failure: queue null
 
-	if (queue->len == 0) {
+    if (queue->len == 0) {      //Empty queue
 		*item = NULL;
-		return -1;
+		return 0;
 	}
 
     // Identify head
@@ -98,7 +105,8 @@ int queue_dequeue(queue_t queue, void** item) {
     } else {
         // Update head
 	    queue->head = queue->head->next;
-	    
+	    free (ptr);
+
 	    // Correct new Head/Tail
 	    queue->tail->next = queue->head;
 	    queue->head->prev = queue->tail;
@@ -118,9 +126,7 @@ int queue_dequeue(queue_t queue, void** item) {
  */
 int queue_iterate(queue_t queue, func_t f, void* item) {
     elem_q* iter;
-
-    if (queue == NULL)      // Failure: Null pointer
-        return -1;
+    if (queue == NULL) return -1;   // Failure: queue null
 
     if (queue->len == 0)    // Nothing to do
         return 0;
@@ -133,7 +139,7 @@ int queue_iterate(queue_t queue, func_t f, void* item) {
     }
     
     // Run Function on final element
-    f(item, iter->data);
+    f (item, iter->data);
 
     return 0;
 }
@@ -143,24 +149,33 @@ int queue_iterate(queue_t queue, func_t f, void* item) {
  * Free the queue and return 0 (success) or -1 (failure).
  */
 int queue_free (queue_t queue) {
-    // queue_iterate(queue, free, NULL);
+    elem_q* ptr;
+    if (queue == NULL) return -1;   // Failure: queue null
 
-    if (queue == NULL) {
-    	return -1;
+    //Free queue elements
+    while(queue->head != NULL){
+        free (queue->head->data);  //free associated data
+        queue->head->data = NULL;
+
+        ptr = queue->head;
+        queue->head = queue->head->next;
+
+        free (ptr);               //Free element
+        ptr = NULL;
     }
+
     free (queue);
-    queue = NULL;   // Make queue a NULL pointer     //Correct?
+    queue = NULL;   // Make queue a NULL pointer
     return 0;
 }
 
 
 /*
- * Return the number of items in the queue.
+ * Return the number of items in the queue. Return -1 if passed in NULL queue pointer.
  */
 int queue_length(queue_t queue) {
-	if (queue == NULL) {	//Correct?
-    	return -1;
-    }
+	if (queue == NULL) return -1;   // Failure: queue null
+
     return queue->len;
 }
 
@@ -171,10 +186,11 @@ int queue_length(queue_t queue) {
  */
 int queue_delete(queue_t queue, void* item) {
 	elem_q* iter;
-
-	//Nothing to delete
-	if (queue == NULL || queue->len == 0) {
-		return -1;
+	if (queue == NULL) return -1;   // Failure: queue null
+    
+    //Nothing to delete
+    if (queue->len == 0) {
+		return -1;            //Didn't delete anything
 	}
 
     iter = queue->head;
@@ -212,6 +228,6 @@ int queue_delete(queue_t queue, void* item) {
 
     //Item not found
 	else{
- 		return -1;	
+ 		return -1;	//Nothing deleted
 	}
 }
