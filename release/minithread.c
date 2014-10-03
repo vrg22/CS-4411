@@ -14,6 +14,7 @@
 #include "queue.h"
 #include "synch.h"
 #include "alarm.h"
+#include "multilevel_queue.h"
 
 #include <assert.h>
 
@@ -26,16 +27,22 @@
  */
 
 /* LOCAL SCHEDULER VARIABLES */
+// queue_t run_queue = NULL;                    // The running queue of tcbs
 
-queue_t run_queue = NULL;   // The running queue of tcbs
-minithread_t globaltcb;     // Main TCB that contains the "OS" thread
-int thread_ctr = 0;         // Counts created threads. Used for ID assignment
-minithread_t current;       // Keeps track of the currently running minithread
+multilevel_queue_t run_queue = NULL;            // The running multilevel feedback queue
+int current_run_level = -1;                     // The level of the currently running process
+float prob_level[4] = {0.5, 0.25, 0.15, 0.1};   // Probability of selecting thread at given level
+int quant_level[4] = {1, 2, 4, 8};              // Quanta assigned for each level
+
+minithread_t globaltcb;                         // Main TCB that contains the "OS" thread
+int thread_ctr = 0;                             // Counts created threads. Used for ID assignment
+minithread_t current;                           // Keeps track of the currently running minithread
 
 /* CLOCK VARIABLES */
-int clk_period = SECOND;    // Clock interrupt period
-long clk_count = 0;         // Running count of clock interrupts
-// queue_t alarm_queue;        // Queue containing alarms (soonest deadline at head of queue)
+int clk_period  = SECOND;       // Clock interrupt period           //NOTE: reduce your clock period to 100 ms
+int clk_quantum = 0;            // Scheduler time-quantum unit      //NOTE: set to 'clk_period' somewhere!!!
+long clk_count = 0;             // Running count of clock interrupts
+// queue_t alarm_queue;         // Queue containing alarms (soonest deadline at head of queue)
 
 
 /* minithread functions */
@@ -67,6 +74,7 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     tcb->func = proc;
     tcb->arg = arg;
     tcb->dead = 0;
+    tcb->run_level = 0;   //Default, add tcb to top-level queue
     
     // Set up TCB stack
     minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); // Allocate new stack
@@ -75,47 +83,68 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     return tcb;
 }
 
-minithread_t minithread_self() { // Return current instead?
-    return (minithread_t) (run_queue->head->data);
+/* */
+minithread_t minithread_self() {
+    return current;
+
+    // return (minithread_t) (run_queue->head->data);
 }
 
-int minithread_id() {               
-    minithread_t tcb;
-    if (queue_length(run_queue) == 0) return -1; // No running thread
+/* */
+int minithread_id() {
+    return current->id;
+
+    // minithread_t tcb;
+    // if (queue_length(run_queue) == 0) return -1; // No running thread
     
-    tcb = (minithread_t) (run_queue->head->data);
-    return tcb->id;
+    // tcb = (minithread_t) (run_queue->head->data);
+    // return tcb->id;
 }
 
+/* "current" is running; Do not enqueue it to the running queue. 
+    Simply run the next valid thread.   */
 void minithread_stop() {
-  minithread_t tcb_old;
+  minithread_next(current); // Jump to next ready process
 
-  /* Remove current process from head of run_queue */
-  if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
-    printf("ERROR: minithread_stop() failed to dequeue current process from head of run_queue");
-    return;
-  }
-	minithread_next(tcb_old); // Jump to next ready process
+  // minithread_t tcb_old;
+  //
+  // /* Remove current process from head of run_queue */
+  // if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
+  //   printf("ERROR: minithread_stop() failed to dequeue current process from head of run_queue");
+  //   return;
+  // }
 }
 
 void minithread_start(minithread_t t) {
-	if (queue_append(run_queue, t) == -1) return;
+  // Place at level 0 by default
+  if (multilevel_queue_enqueue(run_queue, 0, t) < 0) {
+    printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue");
+    return;
+  }
+  
+  // if (queue_append(run_queue, t) == -1) return;
 }
 
+/* */
 void minithread_yield() {
-  minithread_t tcb_old;
-
-  /* Move current process (at head of run_queue) to tail of run_queue */
-  if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
-    printf("ERROR: minithread_yield() failed to dequeue current process from head of run_queue");
-    return;
-  }
-  if (queue_append(run_queue, tcb_old) < 0) {
-    printf("ERROR: minithread_yield() failed to append current process to end of run_queue");
+  /* Move current process to end of its current level in run_queue */
+  if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
+    printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue");
     return;
   }
 
-  minithread_next(tcb_old); // Jump to next ready process
+  minithread_next(current); // Jump to next ready process
+
+  // minithread_t tcb_old;
+  //
+  // /* Move current process (at head of run_queue) to tail of run_queue */
+  // if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
+  //   printf("ERROR: minithread_yield() failed to dequeue current process from head of run_queue");
+  //   return;
+  // }
+  // if (queue_append(run_queue, tcb_old) < 0) {
+  //   printf("ERROR: minithread_yield() failed to append current process to end of run_queue");
+  //   return;
 }
 
 /*
@@ -145,84 +174,114 @@ void clock_handler(void* arg) {
  *
  */
 void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
-    if (run_queue == NULL) run_queue = queue_new(); // Create ready queue
+  // Create multilevel-feedback queue
+  if (run_queue == NULL) run_queue = multilevel_queue_new(4);
+  current_run_level = 0;
+
+  // Create "OS"/kernel TCB
+  globaltcb = (minithread_t) malloc(sizeof(struct minithread));
+  if (globaltcb == NULL) { // Fail if malloc() fails
+    printf("ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
+    return;
+  }
+  minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
+
+  // Create and schedule first minithread                 //CHECK FOR INVARIANT!!!!!!!
+  current = minithread_fork(mainproc, mainarg);
+
+  /* Set up clock and alarms */
+  minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
+  set_interrupt_level(ENABLED);
+  //alarm_queue = queue_new();
+
+  // OS Code
+  while (1) {    
+    // Destroy preceding process if it was marked as dead
+    if ((current != NULL) && (current->dead == 1)) {
+      // printf("Deallocating...\n");
+      minithread_deallocate(current);
+      // printf("Deallocated!\n");
+      current = globaltcb; // Update current thread pointer
+    }
+    //else {//????
+    // Select next ready process
+    // current = globaltcb; //HACK!!!
+    minithread_next(globaltcb);
+    //}
+  }
     
-    // Create "OS"/kernel TCB
-    globaltcb = (minithread_t) malloc(sizeof(struct minithread));
-    if (globaltcb == NULL) { // Fail if malloc() fails
-      printf("ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
-      return;
-    }
-    minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
+    //OLD CODE:
 
-    // Create and schedule first minithread
-    current = minithread_fork(mainproc, mainarg);
-
-    /* Set up clock and alarms */
-    minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
-    set_interrupt_level(ENABLED);
-    //alarm_queue = queue_new();
-
-
-    while (1) {
-      if (queue_length(run_queue) > 0) { // Only take action if ready queue is not empty
-        if ((current != NULL) && (current->dead == 1)) { // Destory former process if it was marked as dead
-          // Remove current process from head of run_queue
-          if (queue_dequeue(run_queue, (void**) &current) < 0) {
-            printf("ERROR: minithread_system_initialize() failed to dequeue current process from head of run_queue\n");
-          }
-          minithread_deallocate(current);
-          current = globaltcb; // Update current thread pointer
-        } else {
-          minithread_next(globaltcb); // Select next ready process
-        }
-      }
-    }
-  }
-
-/*
- * sleep with timeout in milliseconds
- */
-
-void minithread_sleep_with_timeout(int delay) {
-  minithread_t tcb;
-  queue_dequeue(run_queue, (void**) &tcb); // Remove current thread from running queue
-  queue_append(wait_queue, tcb); // Add current thread to wait queue
-  register_alarm(delay, (alarm_handler_t) &minithread_wake, minithread_self()); // Add alarm to wake current thread
+    // Create ready queue
+    // if (run_queue == NULL) run_queue = queue_new();
+    //
+    // if (queue_length(run_queue) > 0) { // Only take action if ready queue is not empty
+    //   if ((current != NULL) && (current->dead == 1)) { // Destory former process if it was marked as dead
+    //     // Remove current process from head of run_queue
+    //     if (queue_dequeue(run_queue, (void**) &current) < 0) {
+    //       printf("ERROR: minithread_system_initialize() failed to dequeue current process from head of run_queue\n");
+    //     }
+    //     minithread_deallocate(current);
+    //     current = globaltcb; // Update current thread pointer
+    //   } else {
+    //     minithread_next(globaltcb); // Select next ready process
+    //   }
+    // }
 }
 
-    //Run FIFO from running queue
-    /*while (queue_length(run_queue) > 0) {          
-      tcb = (minithread_t) (run_queue->head->data);
-      minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));
-      if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;
-    }*/
-
+/* Pick next process to run */
 void minithread_next(minithread_t self) {
+  // int quantum;
 
-  if (queue_length(run_queue) > 0) {
-    current = run_queue->head->data; // Update current thread pointer to next ready process
-    minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
-  } else {
-    printf("ERROR: minithread_next() called on empty run_queue");
+  //NOTE: Need to modify s.t. the starting point of OS scheduler is probabilistic, NOT just the next level down!!!
+  //Enqueue old guy at the next level he should be located in!!!
+
+  //Set new run_level
+  current_run_level = multilevel_queue_dequeue(run_queue, current_run_level, (void**) &current);
+  if (current_run_level < 0) {
+    // printf("ERROR: minithread_next() called on empty run_queue\n");   //No longer error because we don't let them access multilevel queue size
+    current_run_level = 0;    //CHECK! We need to make sure that 
     minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
+  } else {
+    //Determine new time quantum
+    // quantum = clk_quantum * quant_level[current_run_level];
+    minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
   }
-}
 
-void minithread_deallocate(minithread_t thread) {
-  free(thread);
+  // if (queue_length(run_queue) > 0) {
+  //   current = run_queue->head->data; // Update current thread pointer to next ready process
+  //   minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
+  // } else {
+  //   printf("ERROR: minithread_next() called on empty run_queue");
+  //   minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
+  // }
+
+  //OLD: Run FIFO from running queue
+  /*while (queue_length(run_queue) > 0) {          
+    tcb = (minithread_t) (run_queue->head->data);
+    minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));
+    if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;
+  }*/
 }
 
 /*
-* Freeing function. See machineprimitives.h for explanation.
+* Freeing function.    "Finalproc"
 */
 int minithread_exit(arg_t arg) {
   ((minithread_t) arg)->dead = 1;
-
+  
+  // Context switch to OS/kernel
   minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
   return 0;
 }
 
+/* */
 int minithread_wake(minithread_t thread) {
-  return queue_append(run_queue, thread);
+  return multilevel_queue_enqueue(run_queue, thread->run_level, thread);
+  // return queue_append(run_queue, thread);
+}
+
+/* */
+void minithread_deallocate(minithread_t thread) {
+  free(thread);
 }
