@@ -109,6 +109,15 @@ extern void minithread_next(minithread_t self);
 
 extern void minithread_deallocate(minithread_t thread);
 
+/*
+This function marks the calling thread as "dead" or done executing. However, its stack space cannot
+be freed by itself. The scheduler frees the function's stack space in .... (TBD)
+
+This function is better known as the "final_proc" called in minithread_initialize_stack.
+
+*/
+extern int minithread_exit(arg_t arg);
+
 
 #endif /*__MINITHREAD_H__*/
 

@@ -118,6 +118,9 @@ void minithread_yield() {
  * function as parameter in minithread_system_initialize
  */
 void clock_handler(void* arg) {
+  interrupt_level_t old_ilevel = set_interrupt_level(DISABLED);
+  // do shit
+  set_interrupt_level(old_ilevel);
 }
 
 /*
@@ -147,6 +150,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
     // Create and schedule first minithread
     current = minithread_fork(mainproc, mainarg);
+
+    minithread_clock_init(2 * SECOND, (interrupt_handler_t) &clock_handler);
 
     while (1) {
       if (queue_length(run_queue) > 0) { // Only take action if ready queue is not empty
@@ -191,4 +196,14 @@ void minithread_next(minithread_t self) {
 
 void minithread_deallocate(minithread_t thread) {
   free(thread);
+}
+
+/*
+* Freeing function. See machineprimitives.h for explanation.
+*/
+int minithread_exit(arg_t arg) {
+  ((minithread_t) arg)->dead = 1;
+
+  minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
+  return 0;
 }

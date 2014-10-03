@@ -21,8 +21,7 @@ extern minithread_t globaltcb;
  * main and final procedures saved on the thread's stack
  */
 typedef struct initial_stack_state *initial_stack_state_t;
-struct initial_stack_state
-{
+struct initial_stack_state {
   void *body_proc;            /* v1 or ebx */
   void *body_arg;             /* v2 or edi */
   void *finally_proc;         /* v3 or esi */
@@ -54,11 +53,9 @@ struct initial_stack_state
 /*
  * Allocate a new stack.
  */
-void
-minithread_allocate_stack(stack_pointer_t *stackbase, stack_pointer_t *stacktop)
-{
+void minithread_allocate_stack(stack_pointer_t *stackbase, stack_pointer_t *stacktop) {
     *stackbase = (stack_pointer_t) malloc(STACKSIZE);
-    if (!*stackbase)  {
+    if (!*stackbase) {
     	return;
     }
 
@@ -77,9 +74,7 @@ minithread_allocate_stack(stack_pointer_t *stackbase, stack_pointer_t *stacktop)
  *
  * The stack cannot be used after this call.
  */
-void
-minithread_free_stack(stack_pointer_t stackbase)
-{
+void minithread_free_stack(stack_pointer_t stackbase) {
     free(stackbase);
 }
 
@@ -113,15 +108,4 @@ void minithread_initialize_stack(stack_pointer_t *stacktop, proc_t body_proc, ar
     ss->finally_arg = (void *) finally_arg;
 
     ss->root_proc = (void *) minithread_root;
-}
-
-
-/*
-* Freeing function. See machineprimitives.h for explanation.
-*/
-int minithread_exit(arg_t arg) {
-  ((minithread_t) arg)->dead = 1;
-
-  minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
-	return 0;
 }
