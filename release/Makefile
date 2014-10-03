@@ -11,7 +11,7 @@ default: all
 #
 # this would be a good place to add your tests
 #
-# Test cases: test-queue.c 
+# Test cases: queue_test.c 
 all: test1 test2 test3 buffer sieve queue_test shop
 
 # running "make clean" will remove all files ignored by git.  To ignore more
