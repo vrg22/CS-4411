@@ -27,7 +27,6 @@
  */
 
 /* LOCAL SCHEDULER VARIABLES */
-// queue_t run_queue = NULL;                    // The running queue of tcbs
 
 multilevel_queue_t run_queue = NULL;            // The running multilevel feedback queue
 int current_run_level = -1;                     // The level of the currently running process
@@ -37,12 +36,13 @@ int quant_level[4] = {1, 2, 4, 8};              // Quanta assigned for each leve
 minithread_t globaltcb;                         // Main TCB that contains the "OS" thread
 int thread_ctr = 0;                             // Counts created threads. Used for ID assignment
 minithread_t current;                           // Keeps track of the currently running minithread
+queue_t zombie_queue;                           // Keeps dead threads for cleanup. Cleaned by kernel TCB when size exceeds N.
 
 /* CLOCK VARIABLES */
 int clk_period  = SECOND;       // Clock interrupt period           //NOTE: reduce your clock period to 100 ms
 int clk_quantum = 0;            // Scheduler time-quantum unit      //NOTE: set to 'clk_period' somewhere!!!
 long clk_count = 0;             // Running count of clock interrupts
-// queue_t alarm_queue;         // Queue containing alarms (soonest deadline at head of queue)
+// queue_t alarm_queue = NULL;  // Queue containing alarms (soonest deadline at head of queue)
 
 
 /* minithread functions */
@@ -75,6 +75,8 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     tcb->arg = arg;
     tcb->dead = 0;
     tcb->run_level = 0;   //Default, add tcb to top-level queue
+    tcb->quant_left = quant_level[0];
+    tcb->priviliged = 0;  //Default privilege level
     
     // Set up TCB stack
     minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); // Allocate new stack
@@ -156,6 +158,14 @@ void clock_handler(void* arg) {
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
   clk_count++; // Increment clock count
   // if (clk_count % 10 == 0) printf("Count");
+
+  //
+  //Enqueue old guy at the next level he should be located in
+  //
+
+  // move guy 
+
+
   set_interrupt_level(old_level); // Restore old interrupt level
 }
 
@@ -184,6 +194,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     printf("ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
     return;
   }
+  globaltcb->priviliged = 1;    //Give kernel TCB the privilige bit
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
 
   // Create and schedule first minithread                 //CHECK FOR INVARIANT!!!!!!!
@@ -197,17 +208,12 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // OS Code
   while (1) {    
     // Destroy preceding process if it was marked as dead
-    if ((current != NULL) && (current->dead == 1)) {
-      // printf("Deallocating...\n");
+    if ((current != NULL) && (current->dead == 1)) {          //DONT make destruction reliant on current proc!!!
       minithread_deallocate(current);
-      // printf("Deallocated!\n");
       current = globaltcb; // Update current thread pointer
     }
-    //else {//????
     // Select next ready process
-    // current = globaltcb; //HACK!!!
     minithread_next(globaltcb);
-    //}
   }
     
     //OLD CODE:
@@ -232,8 +238,6 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 /* Pick next process to run */
 void minithread_next(minithread_t self) {
   // int quantum;
-
-  //Enqueue old guy at the next level he should be located in!!!      // -> Quant timer needs to do that
 
   //Make the OS scheduler probabilistic rather than just selecting from the next level down
   int nxt_lvl;
@@ -281,6 +285,10 @@ void minithread_next(minithread_t self) {
 * Freeing function.    "Finalproc"
 */
 int minithread_exit(arg_t arg) {
+  //NOTE: ensure that clock interrupt doesnt mess things up if it occurs here
+  //IE, if we go into clock interrupt and are preempted, then we would have to be enqueued again somewhere,
+  //but we're almost dead. then, it may take a while to finally clean me up -> is this acceptable?
+  //Is it OK or not to disable interrupts for the time here to put me on the zombie queue?
   ((minithread_t) arg)->dead = 1;
   
   // Context switch to OS/kernel

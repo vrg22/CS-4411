@@ -22,8 +22,11 @@
 typedef struct minithread *minithread_t;
 struct minithread {
 	int id;
-	int run_level;
 	int dead;
+	int priviliged;
+
+	int run_level;
+	int quant_left;
 
 	stack_pointer_t stackbase;
 	stack_pointer_t stacktop;
