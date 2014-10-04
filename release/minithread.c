@@ -28,6 +28,8 @@
 
 /* LOCAL SCHEDULER VARIABLES */
 
+semaphore_t mutex = NULL;
+
 multilevel_queue_t run_queue = NULL;            // The running multilevel feedback queue
 int system_run_level = -1;                     // The level of the currently running process
 double prob_level[4] = {0.5, 0.25, 0.15, 0.1};  // Probability of selecting thread at given level       //NOTE: double or float or long?
@@ -89,25 +91,21 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
 /* */
 minithread_t minithread_self() {
     return current;
-
-    // return (minithread_t) (run_queue->head->data);
 }
 
 /* */
 int minithread_id() {
     return current->id;
-
-    // minithread_t tcb;
-    // if (queue_length(run_queue) == 0) return -1; // No running thread
-    
-    // tcb = (minithread_t) (run_queue->head->data);
-    // return tcb->id;
 }
 
-/* "current" is running; Do not enqueue it to the running queue. 
-    Simply run the next valid thread.   */
+/* Take the current process off the run_queue. Can choose to put in a wait_queue. 
+   Regardless, switch over to OS to now decide what to do. */
 void minithread_stop() {
-  minithread_next(current); // Jump to next ready process
+  semaphore_P(mutex);
+  current = globaltcb;
+  semaphore_V(mutex);
+
+  // minithread_next(current); // Jump to next ready process
 
   // minithread_t tcb_old;
   //
@@ -201,6 +199,9 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   globaltcb->priviliged = 1;    //Give kernel TCB the privilige bit
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
 
+  // Create mutex for shared-state accesses
+  mutex = semaphore_create();
+
   // Create multilevel-feedback queue
   if (run_queue == NULL) run_queue = multilevel_queue_new(4);
   system_run_level = 0;
@@ -248,19 +249,11 @@ void minithread_next(minithread_t self) {
 
   //Set new run_level
   system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current);
-  //system_run_level = multilevel_queue_dequeue(run_queue, system_run_level, (void**) &current);      // <- OLDER CODE
 
   if (system_run_level >= 0) {
     // Context switch to next ready process
     minithread_switch(&(self->stacktop), &(current->stacktop));
   }
-
-  // else {    // Should NOT need to switch, because only globaltcb should be able to call minithread_next anyway.
-               // We should FORCE the globaltcb to take control before we want to pick a new process to run.
-  //   // printf("ERROR: Already in globaltcb; don't switch to yourself\n");
-  //   current = globaltcb;      //NECESSARY?
-  //   minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
-  // }
 
 }
 
@@ -283,7 +276,7 @@ int minithread_exit(arg_t arg) {
   return 0;
 }
 
-/* */
+/* Wake up a thread. */
 int minithread_wake(minithread_t thread) {
   return multilevel_queue_enqueue(run_queue, thread->run_level, thread);
   // return queue_append(run_queue, thread);
