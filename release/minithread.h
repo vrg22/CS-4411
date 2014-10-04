@@ -23,7 +23,7 @@ typedef struct minithread *minithread_t;
 struct minithread {
 	int id;
 	int dead;
-	int priviliged;
+	int privileged;
 
 	int run_level;
 	int quant_left;

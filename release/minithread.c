@@ -53,6 +53,9 @@ long clk_count = 0;             // Running count of clock interrupts
 minithread_t minithread_fork(proc_t proc, arg_t arg) {
     minithread_t tcb = minithread_create(proc, arg);
     if (tcb == NULL) return NULL;
+
+    printf("Ptr of tcb:%p\n", tcb);
+    
     minithread_start(tcb);
     return tcb;
 }
@@ -79,7 +82,7 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     tcb->dead = 0;
     tcb->run_level = 0;   //Default, add tcb to top-level queue
     tcb->quant_left = quant_level[0];
-    tcb->priviliged = 0;  //Default privilege level
+    tcb->privileged = 0;  //Default privilege level
     
     // Set up TCB stack
     minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); // Allocate new stack
@@ -89,61 +92,61 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
 }
 
 /* */
-minithread_t minithread_self() {
+minithread_t minithread_self() {      // LOCKING necessary?
     return current;
 }
 
 /* */
-int minithread_id() {
+int minithread_id() {                 // LOCKING necessary?
     return current->id;
 }
 
 /* Take the current process off the run_queue. Can choose to put in a wait_queue. 
    Regardless, switch over to OS to now decide what to do. */
 void minithread_stop() {
-  semaphore_P(mutex);
+  minithread_t tcb_old;
+
+  set_interrupt_level(DISABLED);        //CHECK!!!
+  tcb_old = current;
+
+  //Context switch to OS
   current = globaltcb;
-  semaphore_V(mutex);
-
-  // minithread_next(current); // Jump to next ready process
-
-  // minithread_t tcb_old;
-  //
-  // /* Remove current process from head of run_queue */
-  // if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
-  //   printf("ERROR: minithread_stop() failed to dequeue current process from head of run_queue");
-  //   return;
-  // }
+  minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));
 }
 
 void minithread_start(minithread_t t) {
+  interrupt_level_t old_level = set_interrupt_level(DISABLED);        //CHECK!!!
+
+  printf("Ptr of t:%p\n", t);
+
+  // semaphore_P(mutex);
   // Place at level 0 by default
   if (multilevel_queue_enqueue(run_queue, 0, t) < 0) {
     printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue");
     return;
   }
+  // semaphore_V(mutex);
+
+  set_interrupt_level(old_level);
 }
 
 void minithread_yield() {
+  minithread_t tcb_old;
+
+  set_interrupt_level(DISABLED);        //CHECK!!!
+  tcb_old = current;
+
+  // semaphore_P(mutex);
   /* Move current process to end of its current level in run_queue */
   if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
     printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue");
     return;
   }
+  // semaphore_V(mutex);
 
-  jump back to globaltcb, which will then pick the next ready process
-  // minithread_next(current); // Jump to next ready process
-
-  // minithread_t tcb_old;
-  //
-  // /* Move current process (at head of run_queue) to tail of run_queue */
-  // if (queue_dequeue(run_queue, (void**) &tcb_old) < 0) {
-  //   printf("ERROR: minithread_yield() failed to dequeue current process from head of run_queue");
-  //   return;
-  // }
-  // if (queue_append(run_queue, tcb_old) < 0) {
-  //   printf("ERROR: minithread_yield() failed to append current process to end of run_queue");
-  //   return;
+  //Context switch to OS
+  current = globaltcb;
+  minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));
 }
 
 /*
@@ -165,7 +168,8 @@ void clock_handler(void* arg) {
       current->run_level = (current->run_level + 1) % 4;   //Choose to wrap around processes to have priority "refreshed"
       current->quant_left = quant_level[current->run_level];
       multilevel_queue_enqueue(run_queue, current->run_level, current);
-      current = globaltcb;  //NECESSARY?
+      
+      current = globaltcb;
       minithread_switch(&(current->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
     }
 
@@ -196,7 +200,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     printf("ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
     return;
   }
-  globaltcb->priviliged = 1;    //Give kernel TCB the privilige bit
+  globaltcb->privileged = 1;    //Give kernel TCB the privilege bit
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
 
   // Create mutex for shared-state accesses
@@ -209,6 +213,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Create zombie queue for dead threads
   if (zombie_queue == NULL) zombie_queue = queue_new();
 
+  printf("Gets here...\n");
+
   // Create and schedule first minithread                 
   current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
 
@@ -216,6 +222,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
   set_interrupt_level(ENABLED);
   //alarm_queue = queue_new();
+
+  // printf("Gets here...\n");
 
   // OS Code
   while (1) {    
@@ -231,7 +239,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   }
 }
 
-/* Pick next process to run */
+/* Pick next process to run. SHOULD ONLY run in OS MODE */
 void minithread_next(minithread_t self) {
 
   //Make the OS scheduler probabilistic rather than just selecting from the next level down
@@ -261,25 +269,21 @@ void minithread_next(minithread_t self) {
 * Thread finishing function.    "Finalproc"
 */
 int minithread_exit(arg_t arg) {
-  //NOTE: ensure that clock interrupt doesnt mess things up if it occurs here
-  //IE, if we go into clock interrupt and are preempted, then we would have to be enqueued again somewhere,
-  //but we're almost dead. then, it may take a while to finally clean me up -> is this acceptable?
-  //Is it OK or not to disable interrupts for the time here to put me on the zombie queue?
+  //Need to disable to modify zombie queue while changing "current"
   set_interrupt_level(DISABLED);
 
   ((minithread_t) arg)->dead = 1;   //do we need this? if using zombie_queue, probably not...
   queue_append(zombie_queue, current);
   
   // Context switch to OS/kernel
-  current = globaltcb;                                  //NECESSARY?
+  current = globaltcb;
   minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
   return 0;
 }
 
 /* Wake up a thread. */
 int minithread_wake(minithread_t thread) {
-  return multilevel_queue_enqueue(run_queue, thread->run_level, thread);
-  // return queue_append(run_queue, thread);
+  return multilevel_queue_enqueue(run_queue, thread->run_level, thread);    //CHECK!!!    //NOT currently thread-safe
 }
 
 /* Deallocate a thread. */
