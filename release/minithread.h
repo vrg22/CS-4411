@@ -66,14 +66,12 @@ extern minithread_t minithread_create(proc_t proc, arg_t arg);
  */
 extern minithread_t minithread_self();
 
-
 /*
  * int minithread_id():
  *      Return thread identifier of caller thread, for debugging.
  *
  */
 extern int minithread_id();
-
 
 /*
  * minithread_stop()
@@ -116,19 +114,23 @@ extern void minithread_sleep_with_timeout(int delay);
  */
 extern void minithread_next(minithread_t self);
 
-extern void minithread_deallocate(minithread_t thread);
-
 /*
 This function marks the calling thread as "dead" or done executing. However, its stack space cannot
 be freed by itself. The scheduler frees the function's stack space in .... (TBD)
 
 This function is better known as the "final_proc" called in minithread_initialize_stack.
-
 */
 extern int minithread_exit(arg_t arg);
 
-
+/* */
 extern int minithread_wake(minithread_t thread);
+
+/* Deallocate a thread. */
+extern void minithread_deallocate(minithread_t thread);
+
+/* Deallocate a thread => wrapper for queue_iterate use. */
+extern void minithread_deallocate_func(void* null_arg, void* thread);
+
 
 
 #endif /*__MINITHREAD_H__*/

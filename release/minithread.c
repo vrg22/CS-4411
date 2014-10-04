@@ -36,11 +36,12 @@ int quant_level[4] = {1, 2, 4, 8};              // Quanta assigned for each leve
 minithread_t globaltcb;                         // Main TCB that contains the "OS" thread
 int thread_ctr = 0;                             // Counts created threads. Used for ID assignment
 minithread_t current;                           // Keeps track of the currently running minithread
-queue_t zombie_queue;                           // Keeps dead threads for cleanup. Cleaned by kernel TCB when size exceeds N.
+queue_t zombie_queue;                           // Keeps dead threads for cleanup. Cleaned by kernel TCB when size exceeds limit
+int zombie_limit = 5;                           // Limit on length of zombie queue  
+                                                           //CHECK arbitrary selection of zombie_limit!!!
 
 /* CLOCK VARIABLES */
-int clk_period  = SECOND;       // Clock interrupt period           //NOTE: reduce your clock period to 100 ms
-int clk_quantum = 0;            // Scheduler time-quantum unit      //NOTE: set to 'clk_period' somewhere!!!
+int clk_period = SECOND;        // Clock interrupt period           //NOTE: reduce your clock period to 100 ms
 long clk_count = 0;             // Running count of clock interrupts
 // queue_t alarm_queue = NULL;  // Queue containing alarms (soonest deadline at head of queue)
 
@@ -125,7 +126,6 @@ void minithread_start(minithread_t t) {
   }
 }
 
-/* */
 void minithread_yield() {
   /* Move current process to end of its current level in run_queue */
   if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
@@ -133,7 +133,8 @@ void minithread_yield() {
     return;
   }
 
-  minithread_next(current); // Jump to next ready process
+  jump back to globaltcb, which will then pick the next ready process
+  // minithread_next(current); // Jump to next ready process
 
   // minithread_t tcb_old;
   //
@@ -173,6 +174,7 @@ void clock_handler(void* arg) {
   }
 
   set_interrupt_level(old_level); // Restore old interrupt level
+
 }
 
 /*
@@ -190,10 +192,6 @@ void clock_handler(void* arg) {
  *
  */
 void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
-  // Create multilevel-feedback queue
-  if (run_queue == NULL) run_queue = multilevel_queue_new(4);
-  system_run_level = 0;
-
   // Create "OS"/kernel TCB
   globaltcb = (minithread_t) malloc(sizeof(struct minithread));
   if (globaltcb == NULL) { // Fail if malloc() fails
@@ -202,6 +200,13 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   }
   globaltcb->priviliged = 1;    //Give kernel TCB the privilige bit
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
+
+  // Create multilevel-feedback queue
+  if (run_queue == NULL) run_queue = multilevel_queue_new(4);
+  system_run_level = 0;
+
+  // Create zombie queue for dead threads
+  if (zombie_queue == NULL) zombie_queue = queue_new();
 
   // Create and schedule first minithread                 
   current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
@@ -213,45 +218,16 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
   // OS Code
   while (1) {    
-    // Destroy preceding process if it was marked as dead
-    if ((current != NULL) && (current->dead == 1)) {          //DONT make destruction reliant on current proc!!!
-      minithread_deallocate(current);
-      current = globaltcb; // Update current thread pointer
+    // Periodically free up zombie queue
+    if (queue_length(zombie_queue) == zombie_limit){
+      queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
+      queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
+      zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
     }
+
     // Select next ready process
     minithread_next(globaltcb);
   }
-
-    //OLD CODE:
-    // 
-    // // OS Code
-    // while (1) {    
-    //   // Destroy preceding process if it was marked as dead
-    //   if ((current != NULL) && (current->dead == 1)) {          //DONT make destruction reliant on current proc!!!
-    //     minithread_deallocate(current);
-    //     current = globaltcb; // Update current thread pointer
-    //   }
-    //   // Select next ready process
-    //   minithread_next(globaltcb);
-    // }
-    
-    //OLDER CODE:
-    // 
-    // Create ready queue
-    // if (run_queue == NULL) run_queue = queue_new();
-    //
-    // if (queue_length(run_queue) > 0) { // Only take action if ready queue is not empty
-    //   if ((current != NULL) && (current->dead == 1)) { // Destory former process if it was marked as dead
-    //     // Remove current process from head of run_queue
-    //     if (queue_dequeue(run_queue, (void**) &current) < 0) {
-    //       printf("ERROR: minithread_system_initialize() failed to dequeue current process from head of run_queue\n");
-    //     }
-    //     minithread_deallocate(current);
-    //     current = globaltcb; // Update current thread pointer
-    //   } else {
-    //     minithread_next(globaltcb); // Select next ready process
-    //   }
-    // }
 }
 
 /* Pick next process to run */
@@ -274,13 +250,17 @@ void minithread_next(minithread_t self) {
   system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current);
   //system_run_level = multilevel_queue_dequeue(run_queue, system_run_level, (void**) &current);      // <- OLDER CODE
 
-  if (system_run_level < 0) {    //No longer error because we don't give them access to the multilevel queue size
-    current = globaltcb;      //NECESSARY?
-    minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
-  } else {
+  if (system_run_level >= 0) {
     // Context switch to next ready process
-    minithread_switch(&(self->stacktop), &(current->stacktop)); 
+    minithread_switch(&(self->stacktop), &(current->stacktop));
   }
+
+  // else {    // Should NOT need to switch, because only globaltcb should be able to call minithread_next anyway.
+               // We should FORCE the globaltcb to take control before we want to pick a new process to run.
+  //   // printf("ERROR: Already in globaltcb; don't switch to yourself\n");
+  //   current = globaltcb;      //NECESSARY?
+  //   minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
+  // }
 
 }
 
@@ -309,7 +289,12 @@ int minithread_wake(minithread_t thread) {
   // return queue_append(run_queue, thread);
 }
 
-/* */
+/* Deallocate a thread. */
 void minithread_deallocate(minithread_t thread) {
   free(thread);
+}
+
+/* Deallocate a thread => wrapper for queue_iterate use. */
+void minithread_deallocate_func(void* null_arg, void* thread) {
+  minithread_deallocate((minithread_t) thread);
 }

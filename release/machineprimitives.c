@@ -13,8 +13,6 @@
 #include "machineprimitives.h"
 #include <sys/mman.h>
 
-extern minithread_t globaltcb;
-
 /*
  * Used to initialize a thread's stack for the first context switch
  * to the thread.  The minithread_root procedure will be run with the

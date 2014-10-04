@@ -164,7 +164,7 @@ int queue_free (queue_t queue) {
         ptr = NULL;
     }
 
-    free (queue);
+    free (queue);                                           //CHECK: SHOULD this free up the POINTER to the queue also?
     queue = NULL;   // Make queue a NULL pointer
     return 0;
 }
