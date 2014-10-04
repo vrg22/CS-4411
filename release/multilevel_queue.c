@@ -5,12 +5,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+int num_levels = 0;
+
 /*
  * Returns an empty multilevel queue with number_of_levels levels. On error should return NULL.
  */
 multilevel_queue_t multilevel_queue_new(int number_of_levels) {
 	multilevel_queue_t ml_queue;
 	int i;
+
+	num_levels = number_of_levels;
 
 	ml_queue = (multilevel_queue_t) malloc(sizeof(struct multilevel_queue));	// Malloc the multilevel queue
 	if (ml_queue == NULL) return NULL;	// malloc failure
@@ -84,4 +88,23 @@ int multilevel_queue_free(multilevel_queue_t queue) {			//CHECK!
 
 	free (queue);
 	return 0;
+}
+
+int multilevel_queue_length(multilevel_queue_t queue) {
+	int i;
+	int length = 0;
+	queue_t q;
+
+	if (queue == NULL){
+		return -1;
+	}
+
+	for (i = 0; i < num_levels; i++) {
+		q = (queue->levels)[i];
+		if (q != NULL) {
+			length += queue_length(q);
+		}
+	}
+
+	return length;
 }

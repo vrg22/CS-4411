@@ -12,7 +12,9 @@
 #define __MINITHREAD_H__
 
 #include "machineprimitives.h"
+#include "queue.h"
 
+extern queue_t alarm_queue;
 
 /*
  * struct minithread:

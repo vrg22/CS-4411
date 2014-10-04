@@ -53,7 +53,7 @@ long clk_count = 0;             // Running count of clock interrupts
 minithread_t minithread_fork(proc_t proc, arg_t arg) {
     minithread_t tcb = minithread_create(proc, arg);
     if (tcb == NULL) return NULL;
-        
+
     minithread_start(tcb);
     return tcb;
 }
@@ -151,13 +151,23 @@ void minithread_yield() {
  * function as parameter in minithread_system_initialize
  */
 void clock_handler(void* arg) {
+  elem_q* iter;
+  alarm_t alarm;
+  void (*func)();
   minithread_t tcb_old;
-
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
+
   tcb_old = current;
 
   clk_count++; // Increment clock count
     // if (clk_count % 10 == 0) printf("Count");
+
+  iter = alarm_queue->head;
+  while (iter && (((alarm_t)(iter->data))->deadline <= clk_count * clk_period)) { // While next alarm deadline has passed
+    alarm = (alarm_t) iter->data;
+    func = alarm->thread;
+    func();
+  }
 
   //Track non-privileged process quanta
   if (current->privileged == 0) {  //Applies only to non-OS threads
@@ -172,7 +182,6 @@ void clock_handler(void* arg) {
       current = globaltcb;
       minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
     }
-
   }
 
   set_interrupt_level(old_level); // Restore old interrupt level
@@ -219,22 +228,20 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   /* Set up clock and alarms */
   minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
   set_interrupt_level(ENABLED);
-  //alarm_queue = queue_new();
+  alarm_queue = queue_new();
 
   // OS Code
   while (1) {
-    //printf("In OS loop\n");
-
     // Periodically free up zombie queue
-    if (queue_length(zombie_queue) == zombie_limit){
-      printf("Freeing zombie_queue\n");
+    if (queue_length(zombie_queue) == zombie_limit) {
       queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
       queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
       zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
     }
 
-    // Select next ready process
-    minithread_next(globaltcb);
+    if (multilevel_queue_length(run_queue) > 0) {
+      minithread_next(globaltcb); // Select next ready process
+    }
   }
 }
 
