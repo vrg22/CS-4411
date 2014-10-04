@@ -29,7 +29,7 @@
 /* LOCAL SCHEDULER VARIABLES */
 
 multilevel_queue_t run_queue = NULL;            // The running multilevel feedback queue
-int current_run_level = -1;                     // The level of the currently running process
+int system_run_level = -1;                     // The level of the currently running process
 double prob_level[4] = {0.5, 0.25, 0.15, 0.1};  // Probability of selecting thread at given level       //NOTE: double or float or long?
 int quant_level[4] = {1, 2, 4, 8};              // Quanta assigned for each level
 
@@ -123,8 +123,6 @@ void minithread_start(minithread_t t) {
     printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue");
     return;
   }
-  
-  // if (queue_append(run_queue, t) == -1) return;
 }
 
 /* */
@@ -157,14 +155,22 @@ void minithread_yield() {
 void clock_handler(void* arg) {
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
   clk_count++; // Increment clock count
-  // if (clk_count % 10 == 0) printf("Count");
+    // if (clk_count % 10 == 0) printf("Count");
 
-  //
-  //Enqueue old guy at the next level he should be located in
-  //
+  //Track non-privileged process quanta
+  if (current->privileged == 0) {  //Applies only to non-OS threads
+    (current->quant_left)--;    //Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
+    
+    //Time's Up
+    if (current->quant_left == 0){
+      current->run_level = (current->run_level + 1) % 4;   //Choose to wrap around processes to have priority "refreshed"
+      current->quant_left = quant_level[current->run_level];
+      multilevel_queue_enqueue(run_queue, current->run_level, current);
+      current = globaltcb;  //NECESSARY?
+      minithread_switch(&(current->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
+    }
 
-  // move guy 
-
+  }
 
   set_interrupt_level(old_level); // Restore old interrupt level
 }
@@ -186,7 +192,7 @@ void clock_handler(void* arg) {
 void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Create multilevel-feedback queue
   if (run_queue == NULL) run_queue = multilevel_queue_new(4);
-  current_run_level = 0;
+  system_run_level = 0;
 
   // Create "OS"/kernel TCB
   globaltcb = (minithread_t) malloc(sizeof(struct minithread));
@@ -197,8 +203,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   globaltcb->priviliged = 1;    //Give kernel TCB the privilige bit
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
 
-  // Create and schedule first minithread                 //CHECK FOR INVARIANT!!!!!!!
-  current = minithread_fork(mainproc, mainarg);
+  // Create and schedule first minithread                 
+  current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
 
   /* Set up clock and alarms */
   minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
@@ -215,9 +221,22 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     // Select next ready process
     minithread_next(globaltcb);
   }
-    
-    //OLD CODE:
 
+    //OLD CODE:
+    // 
+    // // OS Code
+    // while (1) {    
+    //   // Destroy preceding process if it was marked as dead
+    //   if ((current != NULL) && (current->dead == 1)) {          //DONT make destruction reliant on current proc!!!
+    //     minithread_deallocate(current);
+    //     current = globaltcb; // Update current thread pointer
+    //   }
+    //   // Select next ready process
+    //   minithread_next(globaltcb);
+    // }
+    
+    //OLDER CODE:
+    // 
     // Create ready queue
     // if (run_queue == NULL) run_queue = queue_new();
     //
@@ -237,7 +256,6 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
 /* Pick next process to run */
 void minithread_next(minithread_t self) {
-  // int quantum;
 
   //Make the OS scheduler probabilistic rather than just selecting from the next level down
   int nxt_lvl;
@@ -253,45 +271,34 @@ void minithread_next(minithread_t self) {
       nxt_lvl = 3;
 
   //Set new run_level
-  current_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current);
-  //current_run_level = multilevel_queue_dequeue(run_queue, current_run_level, (void**) &current);      // <- OLDER CODE
+  system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current);
+  //system_run_level = multilevel_queue_dequeue(run_queue, system_run_level, (void**) &current);      // <- OLDER CODE
 
-  if (current_run_level < 0) {    //No longer error because we don't give them access to the multilevel queue size
-    // current_run_level = 0;    //CHECK     //Ensures we don't pass -1 to multilevel_queue_dequeue
+  if (system_run_level < 0) {    //No longer error because we don't give them access to the multilevel queue size
+    current = globaltcb;      //NECESSARY?
     minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
   } else {
-    //Determine new time quantum
-    // quantum = clk_quantum * quant_level[current_run_level];
-    minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
+    // Context switch to next ready process
+    minithread_switch(&(self->stacktop), &(current->stacktop)); 
   }
 
-  // if (queue_length(run_queue) > 0) {
-  //   current = run_queue->head->data; // Update current thread pointer to next ready process
-  //   minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
-  // } else {
-  //   printf("ERROR: minithread_next() called on empty run_queue");
-  //   minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
-  // }
-
-  //OLD: Run FIFO from running queue
-  /*while (queue_length(run_queue) > 0) {          
-    tcb = (minithread_t) (run_queue->head->data);
-    minithread_switch(&(globaltcb->stacktop), &(tcb->stacktop));
-    if (queue_dequeue(run_queue, (void**) &tcb) == -1) return;
-  }*/
 }
 
 /*
-* Freeing function.    "Finalproc"
+* Thread finishing function.    "Finalproc"
 */
 int minithread_exit(arg_t arg) {
   //NOTE: ensure that clock interrupt doesnt mess things up if it occurs here
   //IE, if we go into clock interrupt and are preempted, then we would have to be enqueued again somewhere,
   //but we're almost dead. then, it may take a while to finally clean me up -> is this acceptable?
   //Is it OK or not to disable interrupts for the time here to put me on the zombie queue?
-  ((minithread_t) arg)->dead = 1;
+  set_interrupt_level(DISABLED);
+
+  ((minithread_t) arg)->dead = 1;   //do we need this? if using zombie_queue, probably not...
+  queue_append(zombie_queue, current);
   
   // Context switch to OS/kernel
+  current = globaltcb;                                  //NECESSARY?
   minithread_switch(&(((minithread_t) arg)->stacktop), &(globaltcb->stacktop));
   return 0;
 }
