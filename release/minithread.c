@@ -53,9 +53,7 @@ long clk_count = 0;             // Running count of clock interrupts
 minithread_t minithread_fork(proc_t proc, arg_t arg) {
     minithread_t tcb = minithread_create(proc, arg);
     if (tcb == NULL) return NULL;
-
-    printf("Ptr of tcb:%p\n", tcb);
-    
+        
     minithread_start(tcb);
     return tcb;
 }
@@ -117,8 +115,6 @@ void minithread_stop() {
 void minithread_start(minithread_t t) {
   interrupt_level_t old_level = set_interrupt_level(DISABLED);        //CHECK!!!
 
-  printf("Ptr of t:%p\n", t);
-
   // semaphore_P(mutex);
   // Place at level 0 by default
   if (multilevel_queue_enqueue(run_queue, 0, t) < 0) {
@@ -155,7 +151,11 @@ void minithread_yield() {
  * function as parameter in minithread_system_initialize
  */
 void clock_handler(void* arg) {
+  minithread_t tcb_old;
+
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
+  tcb_old = current;
+
   clk_count++; // Increment clock count
     // if (clk_count % 10 == 0) printf("Count");
 
@@ -170,7 +170,7 @@ void clock_handler(void* arg) {
       multilevel_queue_enqueue(run_queue, current->run_level, current);
       
       current = globaltcb;
-      minithread_switch(&(current->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
+      minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
     }
 
   }
@@ -213,8 +213,6 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Create zombie queue for dead threads
   if (zombie_queue == NULL) zombie_queue = queue_new();
 
-  printf("Gets here...\n");
-
   // Create and schedule first minithread                 
   current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
 
@@ -223,12 +221,13 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   set_interrupt_level(ENABLED);
   //alarm_queue = queue_new();
 
-  // printf("Gets here...\n");
-
   // OS Code
-  while (1) {    
+  while (1) {
+    //printf("In OS loop\n");
+
     // Periodically free up zombie queue
     if (queue_length(zombie_queue) == zombie_limit){
+      printf("Freeing zombie_queue\n");
       queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
       queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
       zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
