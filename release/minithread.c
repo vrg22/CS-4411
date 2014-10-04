@@ -31,7 +31,7 @@
 
 multilevel_queue_t run_queue = NULL;            // The running multilevel feedback queue
 int current_run_level = -1;                     // The level of the currently running process
-float prob_level[4] = {0.5, 0.25, 0.15, 0.1};   // Probability of selecting thread at given level
+double prob_level[4] = {0.5, 0.25, 0.15, 0.1};  // Probability of selecting thread at given level       //NOTE: double or float or long?
 int quant_level[4] = {1, 2, 4, 8};              // Quanta assigned for each level
 
 minithread_t globaltcb;                         // Main TCB that contains the "OS" thread
@@ -233,14 +233,27 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 void minithread_next(minithread_t self) {
   // int quantum;
 
-  //NOTE: Need to modify s.t. the starting point of OS scheduler is probabilistic, NOT just the next level down!!!
-  //Enqueue old guy at the next level he should be located in!!!
+  //Enqueue old guy at the next level he should be located in!!!      // -> Quant timer needs to do that
+
+  //Make the OS scheduler probabilistic rather than just selecting from the next level down
+  int nxt_lvl;
+  double val = (double)rand() / RAND_MAX;
+
+  if (val < prob_level[0])       // Pri 0
+      nxt_lvl = 0;
+  else if (val < (prob_level[0] + prob_level[1]))  // Pri 1
+      nxt_lvl = 1;
+  else if (val < (prob_level[0] + prob_level[1] + prob_level[2]))  // Pri 2
+      nxt_lvl = 2;
+  else   //Pri 3
+      nxt_lvl = 3;
 
   //Set new run_level
-  current_run_level = multilevel_queue_dequeue(run_queue, current_run_level, (void**) &current);
-  if (current_run_level < 0) {
-    // printf("ERROR: minithread_next() called on empty run_queue\n");   //No longer error because we don't let them access multilevel queue size
-    current_run_level = 0;    //CHECK! We need to make sure that 
+  current_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current);
+  //current_run_level = multilevel_queue_dequeue(run_queue, current_run_level, (void**) &current);      // <- OLDER CODE
+
+  if (current_run_level < 0) {    //No longer error because we don't give them access to the multilevel queue size
+    // current_run_level = 0;    //CHECK     //Ensures we don't pass -1 to multilevel_queue_dequeue
     minithread_switch(&(self->stacktop), &(globaltcb->stacktop));
   } else {
     //Determine new time quantum
