@@ -35,7 +35,7 @@ semaphore_t semaphore_create() {
 void semaphore_destroy(semaphore_t sem) {
 	if (sem == NULL) {
         printf("ERROR: semaphore_destroy() received NULL argument semaphore\n");
-        return -1;
+        return;
     }
 
 	queue_free(sem->wait_queue);
@@ -69,19 +69,14 @@ void semaphore_P(semaphore_t sem) {
 
 	interrupt_level_t old_ilevel = set_interrupt_level((interrupt_level_t) DISABLED); // Disable interrupts
 
-	while (atomic_test_and_set(&sem->lock) == 1); //Atomically check lock status and leave locked
-	if (--(sem->count) < 0) {		//Resource unavailable
-		//Move calling process to wait queue from run_queue
+	while (atomic_test_and_set(&sem->lock) == 1); // Atomically check lock status and exit loop with lock locked
+	if (--(sem->count) < 0) { // Resource unavailable
 		tcb = minithread_self();
-		queue_append(sem->wait_queue, (void*) tcb);
-
-		//Release lock
-		sem->lock = 0;
-		
-		//context switch to next guy on run_queue
-		minithread_stop();		//Invariant: I should NOT have been the only guy on the run_queue	//want to STOP here, not yield
-	} else {						//Resource obtained, continue operation
-		sem->lock = 0;
+		queue_append(sem->wait_queue, (void*) tcb); // Move calling process from run_queue to semaphore wait_queue
+		sem->lock = 0; // Release lock
+		minithread_stop(); // Context switch to next thread on run_queue
+	} else { // Resource obtained; continue
+		sem->lock = 0; // Release lock
 	}
 
 	set_interrupt_level(old_ilevel); // Enable interrupts
@@ -97,15 +92,12 @@ void semaphore_V(semaphore_t sem) {
 
 	interrupt_level_t old_ilevel = set_interrupt_level((interrupt_level_t) DISABLED); // Disable interrupts
 
-	while (atomic_test_and_set(&sem->lock) == 1); //Atomically check lock status and leave locked
-	if (++(sem->count) <= 0) {		//Resource is in demand still
-		//Take me off wait queue: I will be at head if I'm calling this here, with FIFO semaphore request protocol
-		queue_dequeue(sem->wait_queue, (void**) &tcb);
-		
-		//Put me back on run_queue
-		minithread_start(tcb);
+	while (atomic_test_and_set(&sem->lock) == 1); // Atomically check lock status and exit loop with lock locked
+	if (++(sem->count) <= 0) { // Other thread(s) still waiting for resource
+		queue_dequeue(sem->wait_queue, (void**) &tcb); // Remove current thread from semaphore wait_queue
+		minithread_start(tcb); // Add current thread to run_queue
 	}
-	sem->lock = 0;
+	sem->lock = 0; // Release lock
 
 	set_interrupt_level(old_ilevel); // Enable interrupts
 }

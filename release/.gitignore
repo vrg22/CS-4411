@@ -4,3 +4,4 @@ test3
 buffer
 sieve
 .depend
+*.o
