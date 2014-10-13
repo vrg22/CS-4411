@@ -28,7 +28,7 @@ struct minithread {
 	int privileged;
 
 	int run_level;
-	int quant_left;
+	int quanta_left;
 
 	stack_pointer_t stackbase;
 	stack_pointer_t stacktop;

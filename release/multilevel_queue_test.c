@@ -9,24 +9,21 @@
 
 
 void enqueue_test(multilevel_queue_t queue, void** item) {
-  int  /*genie1,*/ genie2, genie3, genie4, genie5;
+  int genie1, genie2, genie3, genie4, genie5;
 
-  // genie1 = 1;
+  genie1 = 1;
   genie2 = 2;
   genie3 = 3;
   genie4 = 4;
   genie5 = 5;
 
-  multilevel_queue_dequeue(queue, 3, item);      //CHECK that num levels valid???
-
-  // multilevel_queue_enqueue(queue, 0, (void*) &genie1);
+  multilevel_queue_dequeue(queue, 3, item);
+  multilevel_queue_enqueue(queue, 0, (void*) &genie1);
   multilevel_queue_enqueue(queue, 1, (void*) &genie4);
   multilevel_queue_enqueue(queue, 2, (void*) &genie3);
   multilevel_queue_enqueue(queue, 3, (void*) &genie2);
   multilevel_queue_enqueue(queue, 3, (void*) &genie5);
-
-  multilevel_queue_dequeue(queue, 0, item); 
-
+  multilevel_queue_dequeue(queue, 1, item);
 }
 
 
@@ -38,9 +35,9 @@ int main(void) {
   item = NULL;
   enqueue_test(queue, &item);
 
-  if(*((int*)(item)) == 4){
+  if (*((int*)(item)) == 4) {
     printf("Success!!!\n");
-  }else{
+  } else {
     printf("Failure...\n");
   }
 

@@ -32,15 +32,15 @@ semaphore_t mutex = NULL;
 
 multilevel_queue_t run_queue = NULL;            // The running multilevel feedback queue
 int system_run_level = -1;                     // The level of the currently running process
-double prob_level[4] = {0.5, 0.25, 0.15, 0.1};  // Probability of selecting thread at given level       //NOTE: double or float or long?
-int quant_level[4] = {1, 2, 4, 8};              // Quanta assigned for each level
+float prob_level[4] = {0.5, 0.25, 0.15, 0.1};  // Probability of selecting thread at given level       //NOTE: double or float or long?
+int quanta_level[4] = {1, 2, 4, 8};              // Quanta assigned for each level
 
 minithread_t globaltcb;                         // Main TCB that contains the "OS" thread
 int thread_ctr = 0;                             // Counts created threads. Used for ID assignment
 minithread_t current;                           // Keeps track of the currently running minithread
 queue_t zombie_queue;                           // Keeps dead threads for cleanup. Cleaned by kernel TCB when size exceeds limit
 int zombie_limit = 5;                           // Limit on length of zombie queue  
-                                                           //CHECK arbitrary selection of zombie_limit!!!
+
 
 /* CLOCK VARIABLES */
 int clk_period = SECOND;        // Clock interrupt period           //NOTE: reduce your clock period to 100 ms
@@ -79,7 +79,7 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     tcb->arg = arg;
     tcb->dead = 0;
     tcb->run_level = 0;   //Default, add tcb to top-level queue
-    tcb->quant_left = quant_level[0];
+    tcb->quanta_left = quanta_level[0];
     tcb->privileged = 0;  //Default privilege level
     
     // Set up TCB stack
@@ -118,7 +118,7 @@ void minithread_start(minithread_t t) {
   // semaphore_P(mutex);
   // Place at level 0 by default
   if (multilevel_queue_enqueue(run_queue, 0, t) < 0) {
-    printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue");
+    printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
     return;
   }
   // semaphore_V(mutex);
@@ -135,7 +135,7 @@ void minithread_yield() {
   // semaphore_P(mutex);
   /* Move current process to end of its current level in run_queue */
   if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
-    printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue");
+    printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
     return;
   }
   // semaphore_V(mutex);
@@ -171,12 +171,12 @@ void clock_handler(void* arg) {
 
   //Track non-privileged process quanta
   if (current->privileged == 0) {  //Applies only to non-OS threads
-    (current->quant_left)--;    //Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
+    (current->quanta_left)--;    //Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
     
     //Time's Up
-    if (current->quant_left == 0){
+    if (current->quanta_left == 0){
       current->run_level = (current->run_level + 1) % 4;   //Choose to wrap around processes to have priority "refreshed"
-      current->quant_left = quant_level[current->run_level];
+      current->quanta_left = quanta_level[current->run_level];
       multilevel_queue_enqueue(run_queue, current->run_level, current);
       
       current = globaltcb;

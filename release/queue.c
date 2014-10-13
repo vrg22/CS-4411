@@ -11,7 +11,10 @@
  */
 queue_t queue_new() {
     queue_t queue = malloc(sizeof(struct queue));
-    if (queue == NULL) return NULL;   // malloc failure
+    if (queue == NULL) { // malloc() failed
+        printf("ERROR: queue_new() failed to malloc new queue_t\n");
+        return NULL;
+    }
     
     queue->len = 0;
     return queue;
@@ -23,10 +26,17 @@ queue_t queue_new() {
  */
 int queue_prepend(queue_t queue, void* item) {
     elem_q* elem;
-    if (queue == NULL) return -1;   // Failure: queue null
 
+    // Check for argument errors
+    if (queue == NULL) {
+        printf("ERROR: queue_prepend() received NULL argument queue\n");
+        return -1;
+    }
+
+    // Allocate new element wrapper
     elem = (elem_q*) malloc(sizeof(elem_q));
-    if (elem == NULL) {
+    if (elem == NULL) { // malloc() failed
+        printf("ERROR: queue_prepend() failed to malloc new elem_q\n");
         return -1;
     }
 
@@ -55,10 +65,17 @@ int queue_prepend(queue_t queue, void* item) {
  */
 int queue_append(queue_t queue, void* item) {
     elem_q* elem;
-    if (queue == NULL) return -1;   // Failure: queue null
+    
+    // Check for argument errors
+    if (queue == NULL) {
+        printf("ERROR: queue_append() received NULL argument queue\n");
+        return -1;
+    }
 
+    // Allocate new element wrapper
     elem = (elem_q*) malloc(sizeof(elem_q));
-    if (elem == NULL) {
+    if (elem == NULL) { // malloc() failed
+        printf("ERROR: queue_append() failed to malloc new elem_q\n");
         return -1;
     }
 
@@ -87,27 +104,29 @@ int queue_append(queue_t queue, void* item) {
  */
 int queue_dequeue(queue_t queue, void** item) {
 	elem_q* ptr;
-	if (queue == NULL) return -1;   // Failure: queue null
 
-    if (queue->len == 0) {      //Empty queue
+    // Check for argument errors
+    if (queue == NULL) {
+        printf("ERROR: queue_dequeue() received NULL argument queue\n");
+        return -1;
+    }
+
+    if (queue->len == 0) { // Empty queue
 		*item = NULL;
-		return -1;              // Failure: nothing to dequeue
+		return -1;
 	}
 
     // Identify head
     ptr = queue->head;
     *item = ptr->data;
 
-    if (queue->len == 1) {
-	    // Update Queue
+    // Fix queue pointers
+    if (queue->len == 1) { // Resulting queue is empty
 	    queue->head = NULL;
 	    queue->tail = NULL;
     } else {
-        // Update head
 	    queue->head = queue->head->next;
 	    free (ptr);
-
-	    // Correct new Head/Tail
 	    queue->tail->next = queue->head;
 	    queue->head->prev = queue->tail;
 	}
@@ -126,20 +145,26 @@ int queue_dequeue(queue_t queue, void** item) {
  */
 int queue_iterate(queue_t queue, func_t f, void* item) {
     elem_q* iter;
-    if (queue == NULL) return -1;   // Failure: queue null
+    
+    // Check for argument errors
+    if (queue == NULL) {
+        printf("ERROR: queue_iterate() received NULL argument queue\n");
+        return -1;
+    }
 
-    if (queue->len == 0)    // Nothing to do
+    if (queue->len == 0) { // Empty queue; nothing to do
         return 0;
+    }
 
+    // Iterate from queue's head to tail
     iter = queue->head;
-    while(iter->next != queue->head){
-        // Run Function
-        f(item, iter->data);
+    while (iter->next != queue->head) {
+        f(item, iter->data); // Apply f to element
         iter = iter->next;
     }
     
-    // Run Function on final element
-    f (item, iter->data);
+    // Run f on final element
+    f(item, iter->data);
 
     return 0;
 }
@@ -150,22 +175,25 @@ int queue_iterate(queue_t queue, func_t f, void* item) {
  */
 int queue_free (queue_t queue) {
     elem_q* ptr;
-    if (queue == NULL) return -1;   // Failure: queue null
 
-    //Free queue elements
-    while(queue->head != NULL){
-        free (queue->head->data);  //free associated data
-        queue->head->data = NULL;
+    // Check for argument errors
+    if (queue == NULL) {
+        printf("ERROR: queue_free() received NULL argument queue\n");
+        return -1;
+    }
+
+    // Free queue elements
+    while (queue->head != NULL){
+        free(queue->head->data); // Free element data
 
         ptr = queue->head;
         queue->head = queue->head->next;
 
-        free (ptr);               //Free element
-        ptr = NULL;
+        free(ptr); // Free element
+        ptr = NULL; // Set ptr to NULL to avoid dangling pointer when iteration reaches queue->tail and attempts to access the freed head element
     }
 
-    free (queue);                                           //CHECK: SHOULD this free up the POINTER to the queue also?
-    queue = NULL;   // Make queue a NULL pointer
+    free(queue);
     return 0;
 }
 
@@ -174,7 +202,11 @@ int queue_free (queue_t queue) {
  * Return the number of items in the queue. Return -1 if passed in NULL queue pointer.
  */
 int queue_length(queue_t queue) {
-	if (queue == NULL) return -1;   // Failure: queue null
+	// Check for argument errors
+    if (queue == NULL) {
+        printf("ERROR: queue_length() received NULL argument queue\n");
+        return -1;
+    }
 
     return queue->len;
 }
@@ -186,48 +218,48 @@ int queue_length(queue_t queue) {
  */
 int queue_delete(queue_t queue, void* item) {
 	elem_q* iter;
-	if (queue == NULL) return -1;   // Failure: queue null
+
+	// Check for argument errors
+    if (queue == NULL) {
+        printf("ERROR: queue_delete() received NULL argument queue\n");
+        return -1;
+    }
     
-    //Nothing to delete
-    if (queue->len == 0) {
-		return -1;            //Didn't delete anything
+    if (queue->len == 0) { // Empty queue (nothing to delete)
+		return -1;
 	}
 
+    // Find item in queue
     iter = queue->head;
     while ((iter->data != item) && (iter != queue->tail)){
     	iter = iter->next;
     }
 
-    //Found item
-    if (iter->data == item) {
-    	//Update references of adjacent elts
+    if (iter->data == item) { // Found item
+    	// Update references of adjacent elements
     	(iter->prev)->next = iter->next;
     	(iter->next)->prev = iter->prev;
 
-    	//Update queue ptrs to head/tail
-    	if(queue->len > 1) {	//More than one elt
-    		if(iter == queue->head)	//was head but NOT tail
+    	// Update queue head/tail pointers
+    	if (queue->len > 1) { // Resulting queue is not empty
+    		if (iter == queue->head)  // Correct head pointer
     			queue->head = iter->next;
-    		if(iter == queue->tail)	//was tail but NOT head
+    		if (iter == queue->tail) // Correct tail pointer
    				queue->tail = iter->prev;
-   		}
-   		else{
+   		} else { // Resulting queue is empty
    			queue->head = NULL;
    			queue->tail = NULL;
    		}
    		(queue->len)--;
 
-   		//Free elt
+   		// Free element wrapper
    		iter->next = NULL;
    		iter->prev = NULL;
-   		iter->data = NULL;	//Is this WRONG / is item a distinct copy of this pointer?
-   		free (iter);
+   		iter->data = NULL;
+   		free(iter);
 
     	return 0;
-    }
-
-    //Item not found
-	else{
- 		return -1;	//Nothing deleted
+    } else { // item not found
+ 		return -1;
 	}
 }

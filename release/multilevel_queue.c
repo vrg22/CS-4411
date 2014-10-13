@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int num_levels = 0;
-
 /*
  * Returns an empty multilevel queue with number_of_levels levels. On error should return NULL.
  */
@@ -14,22 +12,32 @@ multilevel_queue_t multilevel_queue_new(int number_of_levels) {
 	multilevel_queue_t ml_queue;
 	int i;
 
-	num_levels = number_of_levels;
-
-	ml_queue = (multilevel_queue_t) malloc(sizeof(struct multilevel_queue));	// Malloc the multilevel queue
-	if (ml_queue == NULL) return NULL;	// malloc failure
+	// Allocate space for new multilevel queue
+	ml_queue = (multilevel_queue_t) malloc(sizeof(struct multilevel_queue));
+	if (ml_queue == NULL) { // malloc() failed
+		printf("ERROR: multilevel_queue_new() failed to malloc new multilevel queue\n");
+		return NULL;
+	}
 
 	ml_queue->num_levels = number_of_levels;
-	ml_queue->levels = malloc(sizeof(queue_t) * number_of_levels);		//queue_t array declaration
+	ml_queue->length = 0;
 
-	//Create each level's queue
+	// Allocate space for array of levels
+	ml_queue->levels = malloc(sizeof(queue_t) * number_of_levels);
+	if (ml_queue->levels == NULL) { // malloc() failed
+		printf("ERROR: multilevel_queue_new() failed to malloc multilevel queue array of levels\n");
+		return NULL;
+	}
+
+	// Create queue for each level
 	for (i = 0; i < number_of_levels; i++) {
 		(ml_queue->levels)[i] = queue_new();
-		if ((ml_queue->levels)[i] == NULL) {
-			printf("malloc failed!\n");
-			return NULL;	// malloc failure
+		if ((ml_queue->levels)[i] == NULL) { // malloc() failed
+			printf("ERROR: multilevel_queue_new() failed to malloc multilevel queue level %d\n", i);
+			return NULL;
 		}
 	}
+
 	return ml_queue;
 }
 
@@ -38,13 +46,26 @@ multilevel_queue_t multilevel_queue_new(int number_of_levels) {
  * Appends an void* to the multilevel queue at the specified level. Return 0 (success) or -1 (failure).
  */
 int multilevel_queue_enqueue(multilevel_queue_t queue, int level, void* item) {
-	queue_t q; 
-	int rslt;
+	queue_t q;
+
+	// Check for argument errors
+	if (queue == NULL) {
+		printf("ERROR: multilevel_queue_enqueue() received NULL argument queue\n");
+		return -1;
+	}
+	if (level < 0 || level >= queue->num_levels) {
+		printf("ERROR: multilevel_queue_enqueue() received invalid queue level\n");
+		return -1;
+	}
 
 	q = (queue->levels)[level];
-	rslt = queue_append(q, item);
 
-	return rslt;
+	if (queue_append(q, item) == 0) {
+		(queue->length)++;
+		return 0;
+	}
+	
+	return -1;
 }
 
 /*
@@ -55,20 +76,26 @@ int multilevel_queue_enqueue(multilevel_queue_t queue, int level, void* item) {
  */
 int multilevel_queue_dequeue(multilevel_queue_t queue, int level, void** item) {
 	queue_t q;
-	int i, n;
 
-	n = queue->num_levels;
-	i = 0;
+	// Check for argument errors
+	if (queue == NULL) {
+		printf("ERROR: multilevel_queue_dequeue() received NULL argument queue\n");
+		return -1;
+	}
+	if (level < 0 || level >= queue->num_levels) {
+		printf("ERROR: multilevel_queue_dequeue() received invalid queue level\n");
+		return -1;
+	}
 
-	while (i < n){	//check only n levels
+	while (level < queue->num_levels) {	// Check only levels equal to and lower than the specified level
 		q = (queue->levels)[level];
 
-		if (queue_dequeue(q, item) == 0){
-			return level;		// Success!
+		if (queue_dequeue(q, item) == 0) { // Valid element found; terminate search
+			(queue->length)--;
+			return level;
 		}
 
-		i++;				// loop increment
-		level = (level + 1) % n;	// i points to next possible level
+		level++;
 	}
 
 	// Multi-level queue was empty
@@ -80,31 +107,37 @@ int multilevel_queue_dequeue(multilevel_queue_t queue, int level, void** item) {
  * Free the queue and return 0 (success) or -1 (failure). Do not free the queue nodes; this is
  * the responsibility of the programmer.
  */
-int multilevel_queue_free(multilevel_queue_t queue) {			//CHECK!
-	//Assume programmer will free up each level's queue
-	if (queue == NULL){
+int multilevel_queue_free(multilevel_queue_t queue) {
+	int i, result;
+
+	// Check for argument errors
+	if (queue == NULL) {
+		printf("ERROR: multilevel_queue_free() received NULL argument queue\n");
 		return -1;
 	}
 
-	free (queue);
-	return 0;
+	// Free each level's queue
+	result = 0;
+	for (i = 0; i < queue->num_levels; i++) {
+		result += queue_free((queue->levels)[i]);
+	}
+
+	if (result < 0) {
+		result = -1;
+	} else if (result > 0) {
+		printf("ERROR: multilevel_queue_free() calculated positive result (check queue_free() implementation)\n");
+	}
+
+	free(queue);
+	return result;
 }
 
 int multilevel_queue_length(multilevel_queue_t queue) {
-	int i;
-	int length = 0;
-	queue_t q;
-
-	if (queue == NULL){
+	// Check for argument errors
+	if (queue == NULL) {
+		printf("ERROR: multilevel_queue_length() received NULL argument queue\n");
 		return -1;
 	}
 
-	for (i = 0; i < num_levels; i++) {
-		q = (queue->levels)[i];
-		if (q != NULL) {
-			length += queue_length(q);
-		}
-	}
-
-	return length;
+	return queue->length;
 }
