@@ -12,7 +12,7 @@
  * represented. They see and manipulate only multilevel_queue_t's. 
  */
 typedef struct multilevel_queue* multilevel_queue_t;
-struct multilevel_queue{
+struct multilevel_queue {
 	int num_levels;
 	int length;
 	queue_t* levels;
