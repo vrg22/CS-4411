@@ -234,9 +234,9 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
 
   /* Set up clock and alarms */
-  // minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
-  // set_interrupt_level(ENABLED);
-  // alarm_queue = queue_new();
+  minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
+  set_interrupt_level(ENABLED);
+  alarm_queue = queue_new();
 
   // OS Code
   while (1) {
