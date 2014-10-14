@@ -14,7 +14,6 @@
 #include "machineprimitives.h"
 #include "queue.h"
 
-extern queue_t alarm_queue;
 
 /*
  * struct minithread:
@@ -27,8 +26,8 @@ struct minithread {
 	int dead;
 	int privileged;
 
-	int run_level;
-	int quanta_left;
+	int run_level; // Current level in run_queue that thread is running on
+	int quanta_left; // Number of quanta thread may run (necessary?)
 
 	stack_pointer_t stackbase;
 	stack_pointer_t stacktop;
@@ -40,7 +39,8 @@ struct minithread {
 /* CLOCK VARIABLES */
 extern int clk_period;    		// Clock interrupt period
 extern long clk_count;			// Running count of clock interrupts
-// extern queue_t alarm_queue;		// Queue containing alarms (soonest deadline at head of queue)
+extern queue_t alarm_queue;		// Queue containing alarms (soonest deadline at head of queue)
+
 
 /*
  * minithread_t

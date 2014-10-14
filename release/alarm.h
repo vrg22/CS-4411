@@ -7,6 +7,9 @@
  */
 
 
+#include "queue.h"
+#include "interrupts.h"
+
 /* An alarm_handler_t is a function that will run within the interrupt handler.
  * It must not block, and it must not perform I/O or any other long-running
  * computations.
@@ -16,10 +19,17 @@ typedef void *alarm_id;
 
 typedef struct alarm *alarm_t;
 struct alarm {
-	int deadline;
+	int deadline; // Absolute deadline in ms
 	int executed;
-	void* thread;
+	void* func;
 };
+
+/* CLOCK VARIABLES */
+extern int clk_period;    		// Clock interrupt period
+extern long clk_count;			// Running count of clock interrupts
+
+extern queue_t alarm_queue;	// Queue containing alarms (soonest deadline at head of queue)
+
 
 /* register an alarm to go off in "delay" milliseconds.  Returns a handle to
  * the alarm.

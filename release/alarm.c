@@ -1,12 +1,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "interrupts.h"
 #include "alarm.h"
-#include "minithread.h"
-#include "queue.h"
 
-queue_t alarm_queue = NULL;        // Queue containing alarms (soonest deadline at head of queue)
+queue_t alarm_queue = NULL; // Queue containing alarms (soonest deadline at head of queue)
+
+/* CLOCK VARIABLES */
+int clk_period = SECOND;        // Clock interrupt period           //NOTE: reduce your clock period to 100 ms
+long clk_count = 0;             // Running count of clock interrupts
+
 
 /* see alarm.h */
 alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
@@ -15,31 +17,35 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
 	alarm_t new_alarm;
 	int not_added = 1;
 
-	if (alarm_queue == NULL) {
-		alarm_queue = queue_new();
-	}
-
 	/* Initialize new alarm */
     new_alarm = (alarm_t) malloc(sizeof(struct alarm));
-    if (new_alarm == NULL) return NULL;
+    if (new_alarm == NULL) { // malloc() failed
+        printf("ERROR: register_alarm() failed to malloc new alarm_t\n");
+        return NULL;
+    }
     new_alarm->deadline = clk_count * clk_period + delay * clk_period / MILLISECOND;
-    new_alarm->thread = minithread_self();
+    new_alarm->func = alarm;
     new_alarm->executed = 0;
 
     /* Initialize new queue element */
     elem = (elem_q*) malloc(sizeof(elem_q));
-    if (elem == NULL) return NULL;
+    if (elem == NULL) { // malloc() failed
+        printf("ERROR: register_alarm() failed to malloc new elem_q\n");
+        return NULL;
+    }
     elem->data = new_alarm;
 
     /* Add new alarm's wrapper element to alarm queue */
-    if (alarm_queue == NULL) return NULL;
-    if (queue_length(alarm_queue) == 0) {
+    if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
+        alarm_queue = queue_new();
+    }
+    if (queue_length(alarm_queue) == 0) { // Nothing in alarm_queue; simply add new alarm
     	queue_append(alarm_queue, new_alarm);
     } else {
     	iter = alarm_queue->head;
 
     	while (iter->next != alarm_queue->head && not_added) {
-    		if (((alarm_t) (iter->data))->deadline > new_alarm->deadline) {
+    		if (((alarm_t) (iter->data))->deadline > new_alarm->deadline) { // Found the position to place new alarm in alarm_queue
     			elem->next = iter;
     			elem->prev = iter->prev;
     			iter->prev->next = elem;
@@ -51,7 +57,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
     		iter = iter->next;
     	}
 
-    	// Run Function on final element
+    	// New alarm has latest deadline; insert at end of queue (iter now points to alarm_queue->head)
     	if (not_added) {
     		elem->next = iter;
     		elem->prev = iter->prev;
@@ -68,7 +74,9 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
 /* see alarm.h */
 int deregister_alarm(alarm_id alarm) {
 	int executed = ((alarm_t) alarm)->executed;
-    queue_delete(alarm_queue, (alarm_t) alarm);
+    if (queue_delete(alarm_queue, (alarm_t) alarm) < 0) {
+        printf("ERROR: deregister_alarm() failed to delete alarm\n");
+    }
 
     return executed;
 }
