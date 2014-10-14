@@ -24,7 +24,6 @@ typedef struct minithread *minithread_t;
 struct minithread {
 	int id;
 	int dead;
-	int privileged;
 
 	int run_level; // Current level in run_queue that thread is running on
 	int quanta_left; // Number of quanta thread may run (necessary?)

@@ -126,7 +126,7 @@ int queue_dequeue(queue_t queue, void** item) {
 	    queue->tail = NULL;
     } else {
 	    queue->head = queue->head->next;
-	    free (ptr);
+	    free(ptr);
 	    queue->tail->next = queue->head;
 	    queue->head->prev = queue->tail;
 	}

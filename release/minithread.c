@@ -80,7 +80,6 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     // Set TCB properties
     tcb->id = ++thread_ctr;
     tcb->dead = 0;
-    tcb->privileged = 0; // User-mode evel
     tcb->func = proc;
     tcb->arg = arg;
     tcb->run_level = 0; // Add new thread to highest level in run_queue
@@ -165,7 +164,7 @@ void clock_handler(void* arg) {
   tcb_old = current;
 
   clk_count++; // Increment clock count
-  // if (clk_count % 10 == 0) printf("Count");
+  // if (clk_count % 10 == 0) printf("Tick\n");
 
   if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
     alarm_queue = queue_new();
@@ -179,16 +178,17 @@ void clock_handler(void* arg) {
   }
 
   // Track non-privileged process quanta
-  if (current->privileged == 0) {  // Applies only to non-OS threads
+  if (current != globaltcb) {  // Applies only to non-OS threads
     (current->quanta_left)--;    // Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
     
-    //Time's Up
+    // Time's Up
     if (current->quanta_left == 0) {
       current->run_level = (current->run_level + 1) % 4;   // Choose to wrap around processes to have priority "refreshed"
       current->quanta_left = quanta_level[current->run_level];
       multilevel_queue_enqueue(run_queue, current->run_level, current);
       
       current = globaltcb;
+      // system_run_level = -1;
       minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
     }
   }
@@ -217,7 +217,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     printf("ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
     return;
   }
-  globaltcb->privileged = 1;    //Give kernel TCB the privilege bit
+
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
 
   // Create mutex for shared-state accesses
@@ -225,7 +225,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
   // Create multilevel-feedback queue
   if (run_queue == NULL) run_queue = multilevel_queue_new(4);
-  system_run_level = 0;
+  // system_run_level = -1;
 
   // Create zombie queue for dead threads
   if (zombie_queue == NULL) zombie_queue = queue_new();
@@ -279,18 +279,20 @@ void minithread_next(minithread_t self) {
   else   //Pri 3
       nxt_lvl = 3;
 
-  printf("%d\n", nxt_lvl); // DEBUG!!!
+  // printf("%d\n", nxt_lvl); // DEBUG!!!
 
-  //Set new run_level
+  // Set new run_level
   system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current);
 
-  if (system_run_level >= 0) {
-    // Context switch to next ready process
-    minithread_switch(&(self->stacktop), &(current->stacktop));
-  } else if (system_run_level < 0) {
-    printf("ERROR: minithread_next() failed to dequeue new thread\n");
+  if (system_run_level < 0) {
+    system_run_level = multilevel_queue_dequeue(run_queue, 0, (void**) &current);
   }
 
+  if (current == NULL) {
+    printf("ERROR: minithread_next() attempted to context switch to NULL current thread pointer\n");
+  }
+
+  minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
 }
 
 /*

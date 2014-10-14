@@ -6,8 +6,8 @@
 queue_t alarm_queue = NULL; // Queue containing alarms (soonest deadline at head of queue)
 
 /* CLOCK VARIABLES */
-int clk_period = SECOND;        // Clock interrupt period           //NOTE: reduce your clock period to 100 ms
-long clk_count = 0;             // Running count of clock interrupts
+int clk_period = 100 * MILLISECOND; // Clock interrupt period
+long clk_count = 0;                 // Running count of clock interrupts
 
 
 /* see alarm.h */
