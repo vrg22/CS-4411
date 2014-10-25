@@ -181,6 +181,7 @@ void clock_handler(void* arg) {
     argument = alarm->arg;
     func(argument);
     alarm->executed = 1;
+    deregister_alarm((alarm_id) alarm);
   }
 
   // Track non-privileged process quanta
@@ -241,6 +242,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
   /* Set up clock and alarms */
   minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
+  set_interrupt_level(ENABLED);
+  alarm_queue = queue_new();
 
   // Initialize the network
   network_initialize((network_handler_t) network_handler);

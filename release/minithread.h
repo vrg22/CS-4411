@@ -137,4 +137,3 @@ extern void minithread_deallocate_func(void* null_arg, void* thread);
 
 
 #endif /*__MINITHREAD_H__*/
-

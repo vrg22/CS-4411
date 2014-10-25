@@ -35,11 +35,11 @@ extern queue_t alarm_queue;	// Queue containing alarms (soonest deadline at head
 /* register an alarm to go off in "delay" milliseconds.  Returns a handle to
  * the alarm.
  */
-alarm_id register_alarm(int delay, alarm_handler_t func, void *arg);
+extern alarm_id register_alarm(int delay, alarm_handler_t func, void *arg);
 
 /* unregister an alarm.  Returns 0 if the alarm had not been executed, 1
  * otherwise.
  */
-int deregister_alarm(alarm_id id);
+extern int deregister_alarm(alarm_id id);
 
 #endif

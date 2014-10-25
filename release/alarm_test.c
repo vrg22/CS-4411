@@ -3,19 +3,27 @@
    Test an alarm
 */
 
-#include "minithread.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "minithread.h"
+#include "alarm.h"
+
+
+void functor() {
+	printf("functor() running\n");
+	return;
+}
 
 int thread(int* arg) {
-  printf("Hello, world!\n");
-
-  return 0;
+	register_alarm(5000, (alarm_handler_t) functor, NULL);
+	printf("Hello, world!\n");
+	// while (1);
+	// minithread_sleep_with_timeout(5000);
+	return 0;
 }
 
 int main(void) {
-  minithread_system_initialize(thread, NULL);
-  return 0;
+	minithread_system_initialize(thread, NULL);
+	return 0;
 }
