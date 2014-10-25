@@ -22,6 +22,7 @@ struct alarm {
 	int deadline; // Absolute deadline in ms
 	int executed;
 	void* func;
+	void* arg;
 };
 
 /* CLOCK VARIABLES */

@@ -25,6 +25,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
     }
     new_alarm->deadline = clk_count * clk_period + delay * clk_period / MILLISECOND;
     new_alarm->func = alarm;
+    new_alarm->arg = arg;
     new_alarm->executed = 0;
 
     /* Initialize new queue element */

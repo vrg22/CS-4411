@@ -158,13 +158,17 @@ void clock_handler(void* arg) {
   elem_q* iter;
   alarm_t alarm;
   void (*func)();
+  void (*argument);
   minithread_t tcb_old;
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
 
   tcb_old = current;
 
   clk_count++; // Increment clock count
-  if (clk_count % 10 == 0) fprintf(stderr, "Tick\n");
+
+  // Debug statements to check if clock_handler() is working
+  /*if (clk_count % 10 != 0 && clk_count % 1 == 0) fprintf(stderr, "Tick\n");
+  if (clk_count % 10 == 0) fprintf(stderr, "Tock\n");*/
 
   if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
     alarm_queue = queue_new();
@@ -173,7 +177,8 @@ void clock_handler(void* arg) {
   while (iter && (((alarm_t)(iter->data))->deadline <= clk_count * clk_period)) { // While next alarm deadline has passed
     alarm = (alarm_t) iter->data;
     func = alarm->func;
-    func();
+    argument = alarm->arg;
+    func(argument);
     alarm->executed = 1;
   }
 
@@ -251,6 +256,17 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
       minithread_next(globaltcb); // Select next ready process
     }
   }  
+}
+
+/*
+ * minithread_sleep_with_timeout(int delay)
+ *      Put the current thread to sleep for [delay] milliseconds
+ */
+void minithread_sleep_with_timeout(int delay) {
+  semaphore_t alert = semaphore_create();
+  semaphore_initialize(alert, 0);
+  register_alarm(delay, (alarm_handler_t) semaphore_V, (void*) alert);
+  semaphore_P(alert);
 }
 
 /* Pick next process to run. SHOULD ONLY run in OS MODE */
