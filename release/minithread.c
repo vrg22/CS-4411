@@ -49,11 +49,11 @@ minithread_t minithread_fork(proc_t proc, arg_t arg) {
 
     // Check for argument errors
     if (tcb == NULL) {
-        printf("ERROR: minithread_fork() failed to create new minithread_t\n");
+        fprintf(stderr, "ERROR: minithread_fork() failed to create new minithread_t\n");
         return NULL;
     }
     if (proc == NULL) { // Fail if process pointer is NULL
-      printf("ERROR: minithread_fork() passed a NULL process pointer\n");
+      fprintf(stderr, "ERROR: minithread_fork() passed a NULL process pointer\n");
       return NULL;
     }
 
@@ -66,14 +66,14 @@ minithread_t minithread_create(proc_t proc, arg_t arg) {
     minithread_t tcb;
 
     if (proc == NULL) { // Fail if process pointer is NULL
-      printf("ERROR: minithread_create() passed a NULL process pointer\n");
+      fprintf(stderr, "ERROR: minithread_create() passed a NULL process pointer\n");
       return NULL;
     }
 
     tcb = malloc(sizeof(struct minithread));
 
     if (tcb == NULL) { // Fail if malloc() fails
-      printf("ERROR: minithread_create() failed to malloc new TCB\n");
+      fprintf(stderr, "ERROR: minithread_create() failed to malloc new TCB\n");
       return NULL;
     }
 
@@ -122,7 +122,7 @@ void minithread_start(minithread_t t) {
   // Place at level 0 by default
   // current->run_level = 0;
   if (multilevel_queue_enqueue(run_queue, t->run_level, t) < 0) {
-    printf("ERROR: minithread_yield() failed to append thread to end of level 0 in run_queue\n");
+    fprintf(stderr, "ERROR: minithread_yield() failed to append thread to end of level 0 in run_queue\n");
     return;
   }
   // semaphore_V(mutex);
@@ -139,7 +139,7 @@ void minithread_yield() {
   // semaphore_P(mutex);
   /* Move current process to end of its current level in run_queue */
   if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
-    printf("ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
+    fprintf(stderr, "ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
     return;
   }
   // semaphore_V(mutex);
@@ -164,7 +164,7 @@ void clock_handler(void* arg) {
   tcb_old = current;
 
   clk_count++; // Increment clock count
-  // if (clk_count % 10 == 0) printf("Tick\n");
+  if (clk_count % 10 == 0) fprintf(stderr, "Tick\n");
 
   if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
     alarm_queue = queue_new();
@@ -214,7 +214,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Create "OS"/kernel TCB
   globaltcb = (minithread_t) malloc(sizeof(struct minithread));
   if (globaltcb == NULL) { // Fail if malloc() fails
-    printf("ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
+    fprintf(stderr, "ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
     return;
   }
 
@@ -270,6 +270,8 @@ void minithread_next(minithread_t self) {
     i++;
   }*/
 
+  interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
+
   if (val < prob_level[0])       // Pri 0
       nxt_lvl = 0;
   else if (val < (prob_level[0] + prob_level[1]))  // Pri 1
@@ -279,20 +281,17 @@ void minithread_next(minithread_t self) {
   else   //Pri 3
       nxt_lvl = 3;
 
-  // printf("%d\n", nxt_lvl); // DEBUG!!!
+  // fprintf(stderr, "%d\n", nxt_lvl); // DEBUG!!!
 
-  // Set new run_level
-  system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current);
-
-  if (system_run_level < 0) {
-    system_run_level = multilevel_queue_dequeue(run_queue, 0, (void**) &current);
-  }
+  system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current); // Set new run_level
 
   if (current == NULL) {
-    printf("ERROR: minithread_next() attempted to context switch to NULL current thread pointer\n");
+    fprintf(stderr, "ERROR: minithread_next() attempted to context switch to NULL current thread pointer\n");
   }
 
   minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
+
+  set_interrupt_level(old_level); // Restore old interrupt level
 }
 
 /*

@@ -20,7 +20,7 @@
 semaphore_t semaphore_create() {
 	semaphore_t sem = (semaphore_t) malloc(sizeof(struct semaphore));    //Is the following a cast: return (semaphore_t)0;
 	if (sem == NULL) { // malloc() failed
-        printf("ERROR: semaphore_create() failed to malloc new semaphore_t\n");
+        fprintf(stderr, "ERROR: semaphore_create() failed to malloc new semaphore_t\n");
         return NULL;
     }
 
@@ -34,7 +34,7 @@ semaphore_t semaphore_create() {
  */
 void semaphore_destroy(semaphore_t sem) {
 	if (sem == NULL) {
-        printf("ERROR: semaphore_destroy() received NULL argument semaphore\n");
+        fprintf(stderr, "ERROR: semaphore_destroy() received NULL argument semaphore\n");
         return;
     }
 
@@ -50,7 +50,7 @@ void semaphore_destroy(semaphore_t sem) {
  */
 void semaphore_initialize(semaphore_t sem, int cnt) {
 	if (sem == NULL) {
-        printf("ERROR: semaphore_initialize() received NULL argument semaphore\n");
+        fprintf(stderr, "ERROR: semaphore_initialize() received NULL argument semaphore\n");
         return;
     }
 

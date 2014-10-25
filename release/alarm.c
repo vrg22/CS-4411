@@ -20,7 +20,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
 	/* Initialize new alarm */
     new_alarm = (alarm_t) malloc(sizeof(struct alarm));
     if (new_alarm == NULL) { // malloc() failed
-        printf("ERROR: register_alarm() failed to malloc new alarm_t\n");
+        fprintf(stderr, "ERROR: register_alarm() failed to malloc new alarm_t\n");
         return NULL;
     }
     new_alarm->deadline = clk_count * clk_period + delay * clk_period / MILLISECOND;
@@ -30,7 +30,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
     /* Initialize new queue element */
     elem = (elem_q*) malloc(sizeof(elem_q));
     if (elem == NULL) { // malloc() failed
-        printf("ERROR: register_alarm() failed to malloc new elem_q\n");
+        fprintf(stderr, "ERROR: register_alarm() failed to malloc new elem_q\n");
         return NULL;
     }
     elem->data = new_alarm;
@@ -75,7 +75,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
 int deregister_alarm(alarm_id alarm) {
 	int executed = ((alarm_t) alarm)->executed;
     if (queue_delete(alarm_queue, (alarm_t) alarm) < 0) {
-        printf("ERROR: deregister_alarm() failed to delete alarm\n");
+        fprintf(stderr, "ERROR: deregister_alarm() failed to delete alarm\n");
     }
 
     return executed;

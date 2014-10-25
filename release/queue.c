@@ -12,7 +12,7 @@
 queue_t queue_new() {
     queue_t queue = malloc(sizeof(struct queue));
     if (queue == NULL) { // malloc() failed
-        printf("ERROR: queue_new() failed to malloc new queue_t\n");
+        fprintf(stderr, "ERROR: queue_new() failed to malloc new queue_t\n");
         return NULL;
     }
     
@@ -29,14 +29,14 @@ int queue_prepend(queue_t queue, void* item) {
 
     // Check for argument errors
     if (queue == NULL) {
-        printf("ERROR: queue_prepend() received NULL argument queue\n");
+        fprintf(stderr, "ERROR: queue_prepend() received NULL argument queue\n");
         return -1;
     }
 
     // Allocate new element wrapper
     elem = (elem_q*) malloc(sizeof(elem_q));
     if (elem == NULL) { // malloc() failed
-        printf("ERROR: queue_prepend() failed to malloc new elem_q\n");
+        fprintf(stderr, "ERROR: queue_prepend() failed to malloc new elem_q\n");
         return -1;
     }
 
@@ -68,14 +68,14 @@ int queue_append(queue_t queue, void* item) {
     
     // Check for argument errors
     if (queue == NULL) {
-        printf("ERROR: queue_append() received NULL argument queue\n");
+        fprintf(stderr, "ERROR: queue_append() received NULL argument queue\n");
         return -1;
     }
 
     // Allocate new element wrapper
     elem = (elem_q*) malloc(sizeof(elem_q));
     if (elem == NULL) { // malloc() failed
-        printf("ERROR: queue_append() failed to malloc new elem_q\n");
+        fprintf(stderr, "ERROR: queue_append() failed to malloc new elem_q\n");
         return -1;
     }
 
@@ -107,7 +107,7 @@ int queue_dequeue(queue_t queue, void** item) {
 
     // Check for argument errors
     if (queue == NULL) {
-        printf("ERROR: queue_dequeue() received NULL argument queue\n");
+        fprintf(stderr, "ERROR: queue_dequeue() received NULL argument queue\n");
         return -1;
     }
 
@@ -148,7 +148,7 @@ int queue_iterate(queue_t queue, func_t f, void* item) {
     
     // Check for argument errors
     if (queue == NULL) {
-        printf("ERROR: queue_iterate() received NULL argument queue\n");
+        fprintf(stderr, "ERROR: queue_iterate() received NULL argument queue\n");
         return -1;
     }
 
@@ -178,7 +178,7 @@ int queue_free (queue_t queue) {
 
     // Check for argument errors
     if (queue == NULL) {
-        printf("ERROR: queue_free() received NULL argument queue\n");
+        fprintf(stderr, "ERROR: queue_free() received NULL argument queue\n");
         return -1;
     }
 
@@ -204,7 +204,7 @@ int queue_free (queue_t queue) {
 int queue_length(queue_t queue) {
 	// Check for argument errors
     if (queue == NULL) {
-        printf("ERROR: queue_length() received NULL argument queue\n");
+        fprintf(stderr, "ERROR: queue_length() received NULL argument queue\n");
         return -1;
     }
 
@@ -221,7 +221,7 @@ int queue_delete(queue_t queue, void* item) {
 
 	// Check for argument errors
     if (queue == NULL) {
-        printf("ERROR: queue_delete() received NULL argument queue\n");
+        fprintf(stderr, "ERROR: queue_delete() received NULL argument queue\n");
         return -1;
     }
     
