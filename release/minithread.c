@@ -248,7 +248,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
     // Periodically free up zombie queue
     if (queue_length(zombie_queue) == zombie_limit) {
       queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
-      queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
+      //queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
       zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
     }
 
