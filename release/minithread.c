@@ -356,10 +356,18 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  * You have to call network_initialize with this
  * function as parameter in minithread_system_initialize
  */
-void network_handler(network_interrupt_arg_t* arg) {     //DOUBLECHECK!!!
+void network_handler(network_interrupt_arg_t* pkt) {     //DOUBLECHECK!!!
+  network_address_t addr;
+
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
   
+  //Have pkt -> don't wanna waste too much time processing here
+  //Should there be an alarm on processing that? But what would be an appropriate delay? -> this seems like a bad solution
+  //FREE PACKET WHEN DONE PROCESSING
 
+  //What to do with address?
+  network_address_copy(pkt->sender, addr);
+  //(pkt->buffer, pkt->size)
 
   set_interrupt_level(old_level); // Restore old interrupt level
 }
