@@ -15,6 +15,7 @@
 #include "synch.h"
 #include "alarm.h"
 #include "multilevel_queue.h"
+//#include "network.h"
 
 #include <assert.h>
 
@@ -240,6 +241,9 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
   /* Set up clock and alarms */
   minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
+
+  // Initialize the network
+  network_initialize((network_handler_t) network_handler);
   set_interrupt_level(ENABLED);
   alarm_queue = queue_new();
 
@@ -345,3 +349,18 @@ void minithread_deallocate(minithread_t thread) {
 void minithread_deallocate_func(void* null_arg, void* thread) {
   minithread_deallocate((minithread_t) thread);
 }
+
+
+/*
+ * This is the network interrupt packet handling routine.
+ * You have to call network_initialize with this
+ * function as parameter in minithread_system_initialize
+ */
+void network_handler(network_interrupt_arg_t* arg) {     //DOUBLECHECK!!!
+  interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
+  
+
+
+  set_interrupt_level(old_level); // Restore old interrupt level
+}
+

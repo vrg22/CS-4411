@@ -13,6 +13,9 @@ struct miniport
 void
 minimsg_initialize()
 {
+	//
+	//
+	//
 }
 
 /* Creates an unbound port for listening. Multiple requests to create the same
@@ -25,6 +28,11 @@ minimsg_initialize()
 miniport_t
 miniport_create_unbound(int port_number)
 {
+	//For RECEIVING data
+	//Have fields to allow:
+		-messages to be queued on the port
+		-threads to block waiting for messages
+
     return 0;
 }
 
@@ -39,6 +47,9 @@ miniport_create_unbound(int port_number)
 miniport_t
 miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
 {
+	//For SENDING data
+	//Carefully assign port numbers to OUR miniport! -> bound corresponds to unbound
+
     return 0;
 }
 
@@ -62,6 +73,7 @@ miniport_destroy(miniport_t miniport)
 int
 minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len)
 {
+	//Assemble header identifying destination
     return 0;
 }
 
@@ -75,6 +87,18 @@ minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg
  */
 int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, minimsg_t msg, int *len)
 {
+ 	//Examine header
+ 		-decode to determine which miniport it has been sent to
+ 	//Determine destination
+ 	//Enqueue packet in right place (port?)
+ 	//Wake up any threads that may be blocked waiting for a packet to arrive
+ 		-if none, then message queued at miniport until a receive is performed
+ 		-if multiple, use round-robin pattern
+
+ 	//Allow receiver to reply!
+ 		-create bound port here
+ 		-create corresponding unbound port (referring to sender port)
+
     return 0;
 }
 
