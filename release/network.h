@@ -60,10 +60,7 @@ void network_udp_ports(short myportnum, short otherportnum);
  * network_send_pkt returns the number of bytes sent if it was able to
  * successfully send the data.  Returns -1 otherwise.
  */
-int
-network_send_pkt(network_address_t dest_address,
-                 int hdr_len, char * hdr,
-                 int  data_len, char * data);
+int network_send_pkt(network_address_t dest_address, int hdr_len, char * hdr, int  data_len, char * data);
 
 
 /*******************************************************************************
@@ -105,4 +102,3 @@ void network_address_blankify(network_address_t addr);
 void network_address_copy(network_address_t original, network_address_t copy);
 
 #endif /*__NETWORK_H_*/
-
