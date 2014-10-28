@@ -388,7 +388,10 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
   // V() on sema affiliated w/ unbound port? -> done in minimsg_receive ????
   
-  //What to do with address?
+  //What to do with address? - verify I'm the proper receiver
+
+  
+  // enqueue at unbound port
   // network_address_copy(pkt->sender, addr);
   //(pkt->buffer, pkt->size)
 

@@ -75,19 +75,21 @@ void minimsg_initialize() {
 miniport_t miniport_create_unbound(int port_number) {
 	miniport_t unbound_port;
 
+	semaphore_P(mutex);
+
 	// Ensure port_number is valid for this unbound miniport
 	if (port_number < UNBOUND_MIN_PORT_NUM || port_number > UNBOUND_MAX_PORT_NUM) {
 		fprintf(stderr, "ERROR: miniport_create_unbound() passed a bad port number\n");
+		semaphore_V(mutex);
 		return NULL;
 	}
-
-	semaphore_P(mutex);
 
 	// Allocate new port IF it does not already exist
 	if (ports[port_number] == NULL) {
 		unbound_port = malloc(sizeof(struct miniport));
 		if (unbound_port == NULL) {
 			fprintf(stderr, "ERROR: miniport_create_unbound() failed to malloc new miniport\n");
+			semaphore_V(mutex);
 			return NULL;
 		}
 
@@ -139,6 +141,7 @@ miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port
 	bound_port = malloc(sizeof(struct miniport));
 	if (bound_port == NULL) {
 		fprintf(stderr, "ERROR: miniport_create_bound() failed to malloc new miniport\n");
+		semaphore_V(mutex);
 		return NULL;
 	}
 
@@ -160,15 +163,14 @@ miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port
  * the time it was destroyed, subsequent behavior is undefined.
  */
 void miniport_destroy(miniport_t miniport) {
+	semaphore_P(mutex);
 
-	//Check for valid argument
+	// Check for valid argument
 	if (miniport == NULL){
 		fprintf(stderr, "ERROR: miniport_destroy() was passed a bad argument\n");
+		semaphore_V(mutex);
 		return;
 	}
-
-	
-	semaphore_P(mutex);
 
 	if (miniport->port_type == BOUND) {
 		// Increment the bound counting semaphore
@@ -176,10 +178,10 @@ void miniport_destroy(miniport_t miniport) {
 	}
 	ports[miniport->port_num] = NULL;
 
-	semaphore_V(mutex);
-
-	//Can free the miniport without mutual exclusion		//When to destroy? bounded->thread that used it terminates; unbounded->when last packet waits right there?
+	//When to destroy? bounded->thread that used it terminates; unbounded->when last packet waits right there?
 	free(miniport);
+
+	semaphore_V(mutex);
 }
 
 
@@ -203,10 +205,14 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 		fprintf(stderr, "ERROR: minimsg_send() failed to malloc new miniport\n");
 		return -1;
 	}
+	hdr->protocol = PROTOCOL_MINIDATAGRAM;
 
-	//Call network_send_pkt() from network.h
-	// dest = local_bound_port->;
-	// sent = network_send_pkt(dest, len, hdr, data_len, char* data);
+	// Call network_send_pkt() from network.hdr
+	dest = local_bound_port->u.bound.remote_address;
+	data = (char*) msg;
+	if (network_send_pkt(dest, sizeof(hdr), (char*) hdr, sizeof(data), data) < 0) {
+		THROW SOME BULLSHIT ERROR
+	}
 
     return 0;
 }
