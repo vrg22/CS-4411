@@ -195,23 +195,29 @@ void miniport_destroy(miniport_t miniport) {
  * data payload bytes sent not inclusive of the header.
  */
 int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len) {
-	int sent;
-	network_address_t dest;
+	network_address_t dest, my_address;
 	mini_header_t hdr;
 
-	//Assemble header identifying destination
+	// Allocate new header for packet
 	hdr = malloc(sizeof(struct mini_header));
-	if (hdr == NULL){	//Could not allocate header
-		fprintf(stderr, "ERROR: minimsg_send() failed to malloc new miniport\n");
+	if (hdr == NULL) {	//Could not allocate header
+		fprintf(stderr, "ERROR: minimsg_send() failed to malloc new mini_header\n");
 		return -1;
 	}
-	hdr->protocol = PROTOCOL_MINIDATAGRAM;
+
+	// Assemble packet header
+	hdr->protocol = PROTOCOL_MINIDATAGRAM; // Protocol
+	network_get_my_address(my_address);
+	pack_address(hdr->source_address, my_address); // Source address
+	pack_unsigned_short(hdr->source_port, local_bound_port->port_num); // Source port
+	dest = local_bound_port->u.bound.remote_address;
+	pack_address(hdr->destination_address, dest); // Destination address
+	pack_unsigned_short(hdr->destination_port, local_bound_port->u.bound.remote_unbound_port); // Destination port
 
 	// Call network_send_pkt() from network.hdr
-	dest = local_bound_port->u.bound.remote_address;
-	data = (char*) msg;
-	if (network_send_pkt(dest, sizeof(hdr), (char*) hdr, sizeof(data), data) < 0) {
-		THROW SOME BULLSHIT ERROR
+	if (network_send_pkt(dest, sizeof(hdr), (char*) hdr, sizeof(msg), msg) < 0) {
+		fprintf(stderr, "ERROR: minimsg_send() failed to successfully execute network_send_pkt()\n");
+		return -1;
 	}
 
     return 0;

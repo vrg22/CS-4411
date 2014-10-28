@@ -363,7 +363,7 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  * You have to call network_initialize with this function as parameter in minithread_system_initialize
  */
 void network_handler(network_interrupt_arg_t* pkt) {
-  network_address_t src_addr, dest_addr;
+  // network_address_t src_addr, dest_addr;
   unsigned short src_port, dest_port; //Can we pass this to an int? In fact, should we just set this to an int?
   char* buffer;
   char protocol;
@@ -390,7 +390,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
   
   //What to do with address? - verify I'm the proper receiver
 
-  
+
   // enqueue at unbound port
   // network_address_copy(pkt->sender, addr);
   //(pkt->buffer, pkt->size)
