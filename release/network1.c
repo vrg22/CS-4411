@@ -26,8 +26,7 @@ miniport_t send_port;
 char text[] = "Hello, world!\n";
 int textlen = 14;
 
-int
-thread(int* arg) {
+int thread(int* arg) {
     char buffer[BUFFER_SIZE];
     int length = BUFFER_SIZE;
     miniport_t from;
@@ -44,14 +43,11 @@ thread(int* arg) {
     return 0;
 }
 
-int
-main(int argc, char** argv) {
+int main(int argc, char** argv) {
     short fromport;
     fromport = atoi(argv[1]);
-    network_udp_ports(fromport,fromport); 
+    network_udp_ports(fromport, fromport); 
     textlen = strlen(text) + 1;
     minithread_system_initialize(thread, NULL);
     return -1;
 }
-
-

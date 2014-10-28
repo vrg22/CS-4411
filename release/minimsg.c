@@ -166,17 +166,16 @@ void miniport_destroy(miniport_t miniport) {
 	semaphore_P(msgmutex);
 
 	// Check for valid argument
-	if (miniport == NULL){
-		fprintf(stderr, "ERROR: miniport_destroy() was passed a bad argument\n");
+	if (miniport == NULL) {
+		fprintf(stderr, "ERROR: miniport_destroy() passed a NULL miniport argument\n");
 		semaphore_V(msgmutex);
 		return;
 	}
 
+	ports[miniport->port_num] = NULL; // Clear the miniport from the ports array
 	if (miniport->port_type == BOUND) {
-		// Increment the bound counting semaphore
-		semaphore_V(bound_ports_free);
+		semaphore_V(bound_ports_free); // Increment the bound port counting semaphore
 	}
-	ports[miniport->port_num] = NULL;
 
 	//When to destroy? bounded->thread that used it terminates; unbounded->when last packet waits right there?
 	free(miniport);
