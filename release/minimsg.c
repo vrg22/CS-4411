@@ -3,13 +3,16 @@
  */
 #include "minimsg.h"
 
-#define BOUND   0		//Change?
+#define BOUND   0
 #define UNBOUND 1
 
-//Miniport variables and counters
-semaphore_t boundports;
-int unbound_ctr = 0;
-int bound_ctr = 32768;
+// Miniport variables and counters
+// int unbound_ctr = UNBOUND_MIN_PORT_NUM;
+int bound_ctr = BOUND_MIN_PORT_NUM;
+
+miniport_t* ports = NULL; // Array of miniports for ports
+semaphore_t bound_ports_free = NULL; // Number of bound miniports free
+semaphore_t mutex = NULL; // Mutual exclusion semaphore
 
 
 struct miniport { 
@@ -47,12 +50,18 @@ struct miniport {
 
 /* performs any required initialization of the minimsg layer. */
 void minimsg_initialize() {
-	//Array of 65536 miniports (is this a reasonable idea for fast check???) -> seems bad
-		//-How else to quickly know whether or not a given miniport exists and quickly access it?
+	ports = (miniport_t*) malloc(BOUND_MAX_PORT_NUM * sizeof(miniport_t));
 
-	//Semaphore to limit number of bound ports at a time? (ie, should a bound port be reserved for a thread?)
-	
-	//?
+	if (ports == NULL) { // Fail if malloc() fails
+      fprintf(stderr, "ERROR: minimsg_initialize() failed to malloc miniport_t array\n");
+      return;
+    }
+
+    bound_ports_free = semaphore_create();
+    semaphore_initialize(bound_ports_free, BOUND_MAX_PORT_NUM - BOUND_MIN_PORT_NUM + 1);
+
+    mutex = semaphore_create();
+    semaphore_initialize(mutex, 1);
 }
 
 
@@ -66,35 +75,34 @@ void minimsg_initialize() {
 miniport_t miniport_create_unbound(int port_number) {
 	miniport_t unbound_port;
 
-	//For RECEIVING data
-	//Have fields to allow:
-		// -messages to be queued on the port
-		// -threads to block waiting for messages
-
-	//Ensure port_number is valid for this unbound miniport
-	if (!(port_number >= 0 && port_number <= 32767)){
-		fprintf(stderr, "ERROR: miniport_create_unbound() was passed a bad port number\n");
-		return NULL;	//Invalid unbound port number
+	// Ensure port_number is valid for this unbound miniport
+	if (port_number < UNBOUND_MIN_PORT_NUM || port_number > UNBOUND_MAX_PORT_NUM) {
+		fprintf(stderr, "ERROR: miniport_create_unbound() passed a bad port number\n");
+		return NULL;
 	}
 
+	semaphore_P(mutex);
+
+	// Allocate new port IF it does not already exist
+	if (ports[port_number] == NULL) {
+		unbound_port = malloc(sizeof(struct miniport));
+		if (unbound_port == NULL) {
+			fprintf(stderr, "ERROR: miniport_create_unbound() failed to malloc new miniport\n");
+			return NULL;
+		}
+
+		unbound_port->port_type = UNBOUND;
+		unbound_port->port_num = port_number;
+		unbound_port->u.unbound.incoming_data = queue_new();
+		unbound_port->u.unbound.datagrams_ready = semaphore_create();
+		semaphore_initialize(unbound_port->u.unbound.datagrams_ready, 0); // Counting semaphore
+
+		ports[port_number] = unbound_port;
+	}
+
+	semaphore_V(mutex);
 	
-	//NEED TO ADD LOOKUP IF PORT ALREADY EXISTS!!!
-	//
-
-
-	//Allocate new port IF it does not already exist
-	unbound_port = malloc(sizeof(struct miniport));
-	if (unbound_port == NULL){
-		fprintf(stderr, "ERROR: miniport_create_unbound() failed to malloc new miniport\n");
-        return NULL;
-	}
-	unbound_port->port_type = UNBOUND;
-	unbound_port->port_num = port_number;
-	unbound_port->u.unbound.incoming_data = queue_new();
-	unbound_port->u.unbound.datagrams_ready = semaphore_create();
-	semaphore_initialize(unbound_port->u.unbound.datagrams_ready, 0); //Counting semaphore
-
-    return unbound_port;
+    return ports[port_number];
 }
 
 
@@ -106,42 +114,45 @@ miniport_t miniport_create_unbound(int port_number) {
  * wrap around to 32768 again, incrementally assigning port numbers that are not
  * currently in use.
  */
-miniport_t
-miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
-{
+miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port_number) {
 	miniport_t bound_port;
 
-	//For SENDING data
-	//Carefully assign port numbers to OUR miniport! -> bound corresponds to unbound
-
-	//Ensure remote_unbound_port_number is a valid unbound port number
-	if (!(remote_unbound_port_number >= 0 && remote_unbound_port_number <= 32767)){
-		fprintf(stderr, "ERROR: miniport_create_bound() was passed a bad remote port number\n");
-		return NULL;	//Invalid remote port number passed
-	}
+	/*// Ensure port_number is valid for this bound miniport
+	if (port_number < BOUND_MIN_PORT_NUM || port_number > BOUND_MAX_PORT_NUM) {
+		fprintf(stderr, "ERROR: miniport_create_bound() passed a bad port number\n");
+		return NULL;
+	}*/
 
 	//Check validity of addr
-	//-How?
 
+	semaphore_P(mutex);
 
-	//NEED TO ADD LOOKUP IF PORT ALREADY EXISTS!!!
-	//
+	semaphore_P(bound_ports_free); // Wait for a free bound port
 
-
-	//Allocate new port IF it does not already exist??? -> should you P() on a counting sema to ensure there are NEVER more than 65536?
-	bound_port = malloc(sizeof(struct miniport));
-	if (bound_port == NULL){
-		fprintf(stderr, "ERROR: miniport_create_bound() failed to malloc new miniport\n");
-        return NULL;
+	// Find next open bound port (guaranteed to exist by P() on bound_ports_free above)
+	while (ports[bound_ctr] != NULL) {
+		// bount_ctr = (bound_ctr + 1 - BOUND_MIN_PORT_NUM) % (BOUND_MAX_PORT_NUM - BOUND_MIN_PORT_NUM + 1) + BOUND_MIN_PORT_NUM;
+		bound_ctr = (bound_ctr + 1 > BOUND_MAX_PORT_NUM) ? BOUND_MIN_PORT_NUM : (bound_ctr + 1); 
 	}
+
+	// Allocate new bound port
+	bound_port = malloc(sizeof(struct miniport));
+	if (bound_port == NULL) {
+		fprintf(stderr, "ERROR: miniport_create_bound() failed to malloc new miniport\n");
+		return NULL;
+	}
+
+	bound_port->port_type = BOUND;
 	bound_port->port_num = bound_ctr;
-	bound_ctr = (bound_ctr + 1 > 65536) ? 32768 : (bound_ctr + 1); 
-	
-	//Set destination port number
-	bound_port->u.bound.remote_address = addr;
+	network_address_copy(addr, bound_port->u.bound.remote_address);
+	// bound_port->u.bound.remote_address = &addr;
 	bound_port->u.bound.remote_unbound_port = remote_unbound_port_number;
 
-    return bound_port;
+	ports[bound_ctr] = bound_port;
+
+	semaphore_V(mutex);
+
+    return ports[bound_ctr];
 }
 
 
@@ -149,15 +160,26 @@ miniport_create_bound(network_address_t addr, int remote_unbound_port_number)
  * the time it was destroyed, subsequent behavior is undefined.
  */
 void miniport_destroy(miniport_t miniport) {
-	//Check argument
+
+	//Check for valid argument
 	if (miniport == NULL){
 		fprintf(stderr, "ERROR: miniport_destroy() was passed a bad argument\n");
 		return;
 	}
+
 	
-	//Make SURE that the miniport is not in use at this time
-	//If Bounded: 
-	//If Unbounded:
+	semaphore_P(mutex);
+
+	if (miniport->port_type == BOUND) {
+		// Increment the bound counting semaphore
+		semaphore_V(bound_ports_free);
+	}
+	ports[miniport->port_num] = NULL;
+
+	semaphore_V(mutex);
+
+	//Can free the miniport without mutual exclusion		//When to destroy? bounded->thread that used it terminates; unbounded->when last packet waits right there?
+	free(miniport);
 }
 
 
@@ -183,10 +205,8 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	}
 
 	//Call network_send_pkt() from network.h
-	dest = local_bound_port->;
-	sent = network_send_pkt(network_address_t dest_address,
-                 len, hdr,
-                 int  data_len, char * data);
+	// dest = local_bound_port->;
+	// sent = network_send_pkt(dest, len, hdr, data_len, char* data);
 
     return 0;
 }
@@ -204,23 +224,23 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 	//CHECK THAT PARAMETERS ARE VALID!
 
  	//Examine header
- 		-decode to determine which miniport it has been sent to
+ 		// -decode to determine which miniport it has been sent to
 
  	//Determine destination
  	//Enqueue packet in right place (port?)
  	//Wake up any threads that may be blocked waiting for a packet to arrive
- 		-if none, then message queued at miniport until a receive is performed
- 		-if multiple, use round-robin pattern
+ 		// -if none, then message queued at miniport until a receive is performed
+ 		// -if multiple, use round-robin pattern
 
  	//Allow receiver to reply!
- 		-create bound port here
- 		-create corresponding unbound port (referring to sender port)
+ 		// -create bound port here
+ 		// -create corresponding unbound port (referring to sender port)
 
  	//msg should contain the data payload
  	//len should point to the data length
  	//return number of bytes of payload actually received (drop stuff beyond max)
 
+	//Destroy unbound port when nothing left to listen to at that location
+
     return 0;
 }
-
-

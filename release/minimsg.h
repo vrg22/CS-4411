@@ -7,15 +7,35 @@
  *      the names for types and functions defined here. Functions must take
  *      the exact arguments in the prototypes.
  */
+
 #include "network.h"
+#include "miniheader.h"
+
+#include "synch.h"
+#include "queue.h"
+#include <stdio.h>
 
 /* The maximum size of a minimsg.
  * Must be <= MAX_NETWORK_PKT_SIZE - NETWORK_HDR_SIZE
  */
 #define MINIMSG_MAX_MSG_SIZE (4096)
 
+// Define miniport port num limits
+#define UNBOUND_MIN_PORT_NUM 0
+#define UNBOUND_MAX_PORT_NUM 32767
+#define BOUND_MIN_PORT_NUM 32768
+#define BOUND_MAX_PORT_NUM 65536
+
+
 typedef struct miniport* miniport_t;
 typedef char* minimsg_t;
+
+// Miniport variables and counters
+// semaphore_t boundports;
+extern int unbound_ctr;
+extern int bound_ctr;
+
+extern miniport_t* ports; // Array of miniports for ports
 
 /* performs any required initialization of the minimsg layer.  */
 extern void minimsg_initialize();

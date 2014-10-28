@@ -13,6 +13,7 @@
 
 #include "machineprimitives.h"
 #include "queue.h"
+#include "network.h"
 
 
 /*
@@ -134,6 +135,7 @@ extern void minithread_deallocate(minithread_t thread);
 /* Deallocate a thread => wrapper for queue_iterate use. */
 extern void minithread_deallocate_func(void* null_arg, void* thread);
 
-
+/*  */
+extern void network_handler(network_interrupt_arg_t* pkt);
 
 #endif /*__MINITHREAD_H__*/

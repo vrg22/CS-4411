@@ -7,6 +7,7 @@
  *      NAMING AND TYPING OF THESE PROCEDURES.
  *
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "interrupts.h"
@@ -15,7 +16,9 @@
 #include "synch.h"
 #include "alarm.h"
 #include "multilevel_queue.h"
-// #include "network.h"
+
+#include "miniheader.h"
+#include "minimsg.h"
 
 #include <assert.h>
 
@@ -229,6 +232,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
   // Create mutex for shared-state accesses
   mutex = semaphore_create();
+  semaphore_initialize(mutex, 1);
 
   // Create multilevel-feedback queue
   if (run_queue == NULL) run_queue = multilevel_queue_new(4);
@@ -244,8 +248,9 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
   alarm_queue = queue_new();
 
-  // Initialize the network
+  // Initialize the network and related resources
   network_initialize((network_handler_t) &network_handler);
+  minimsg_initialize();
 
   set_interrupt_level(ENABLED);
 
@@ -357,18 +362,45 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  * This is the network interrupt packet handling routine.
  * You have to call network_initialize with this function as parameter in minithread_system_initialize
  */
-void network_handler(network_interrupt_arg_t* pkt) {     //DOUBLECHECK!!!
-  network_address_t addr;
+void network_handler(network_interrupt_arg_t* pkt) {
+  network_address_t src_addr, dest_addr;
+  unsigned short src_port, dest_port; //Can we pass this to an int? In fact, should we just set this to an int?
+  char* buffer;
+  char protocol;
+  int length;
 
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
-  
-  //Have pkt -> don't wanna waste too much time processing here
-  //Should there be an alarm on processing that? But what would be an appropriate delay? -> this seems like a bad solution
-  //FREE PACKET WHEN DONE PROCESSING
 
+  // Basic packet parameters
+  buffer = pkt->buffer;
+  length = pkt->size;   //Header size + Data size (ie num of char elts that matter?)
+
+  // Extract packet header
+  protocol = buffer[0];
+  buffer = &buffer[1];  //Advance pointer
+
+  unpack_address(buffer, src_addr); //Where packet originally came from
+  src_port = unpack_unsigned_short(buffer);
+
+  unpack_address(buffer, dest_addr); //Ultimate packet destination: may need to send it away if it doesn't match THIS address!!! -> what is current address?
+  dest_port = unpack_unsigned_short(buffer);
+
+
+  // V() on sema affiliated w/ unbound port? -> done in minimsg_receive ????
+  
   //What to do with address?
-  network_address_copy(pkt->sender, addr);
+  // network_address_copy(pkt->sender, addr);
   //(pkt->buffer, pkt->size)
+
+
+
+  // Extract length -> Should we take care that length is not a corrupted value???
+  // Now, what remains in buffer IS the minimsg_t we want to pass to receive
+  // Enqueue the appropriate thing at 
+
+
+  //Free packet after processing
+  free(pkt);
 
   set_interrupt_level(old_level); // Restore old interrupt level
 }

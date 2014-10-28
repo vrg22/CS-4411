@@ -28,7 +28,7 @@ typedef struct {
 
 /* the type of an interrupt handler.  These functions are responsible for freeing
  * the argument that is passed in */
-typedef void (*network_handler_t)(network_interrupt_arg_t *arg);
+typedef void (*network_handler_t) (network_interrupt_arg_t *arg);
 
 /*
  * network_initialize should be called before clock interrupts start
@@ -84,8 +84,7 @@ int network_translate_hostname(char* hostname, network_address_t address);
  * Compares network addresses. Returns 0 if different and
  * nonzero if identical.
  */
-int network_compare_network_addresses(network_address_t addr1,
-                                      network_address_t addr2);
+int network_compare_network_addresses(network_address_t addr1, network_address_t addr2);
 
 /*
  * write the network address in a human-readable way, into a buffer of length
