@@ -364,7 +364,7 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  */
 void network_handler(network_interrupt_arg_t* pkt) {
   // network_address_t src_addr, dest_addr;
-  unsigned short src_port, dest_port; //Can we pass this to an int? In fact, should we just set this to an int?
+  /*unsigned short src_port, dest_port; //Can we pass this to an int? In fact, should we just set this to an int?
   char* buffer;
   char protocol;
   int length;
@@ -405,5 +405,5 @@ void network_handler(network_interrupt_arg_t* pkt) {
   //Free packet after processing
   free(pkt);
 
-  set_interrupt_level(old_level); // Restore old interrupt level
+  set_interrupt_level(old_level); // Restore old interrupt level*/
 }

@@ -12,7 +12,7 @@ int bound_ctr = BOUND_MIN_PORT_NUM;
 
 miniport_t* ports = NULL; // Array of miniports for ports
 semaphore_t bound_ports_free = NULL; // Number of bound miniports free
-semaphore_t mutex = NULL; // Mutual exclusion semaphore
+semaphore_t msgmutex = NULL; // Mutual exclusion semaphore
 
 
 struct miniport { 
@@ -60,8 +60,8 @@ void minimsg_initialize() {
     bound_ports_free = semaphore_create();
     semaphore_initialize(bound_ports_free, BOUND_MAX_PORT_NUM - BOUND_MIN_PORT_NUM + 1);
 
-    mutex = semaphore_create();
-    semaphore_initialize(mutex, 1);
+    msgmutex = semaphore_create();
+    semaphore_initialize(msgmutex, 1);
 }
 
 
@@ -75,12 +75,12 @@ void minimsg_initialize() {
 miniport_t miniport_create_unbound(int port_number) {
 	miniport_t unbound_port;
 
-	semaphore_P(mutex);
+	semaphore_P(msgmutex);
 
 	// Ensure port_number is valid for this unbound miniport
 	if (port_number < UNBOUND_MIN_PORT_NUM || port_number > UNBOUND_MAX_PORT_NUM) {
 		fprintf(stderr, "ERROR: miniport_create_unbound() passed a bad port number\n");
-		semaphore_V(mutex);
+		semaphore_V(msgmutex);
 		return NULL;
 	}
 
@@ -89,7 +89,7 @@ miniport_t miniport_create_unbound(int port_number) {
 		unbound_port = malloc(sizeof(struct miniport));
 		if (unbound_port == NULL) {
 			fprintf(stderr, "ERROR: miniport_create_unbound() failed to malloc new miniport\n");
-			semaphore_V(mutex);
+			semaphore_V(msgmutex);
 			return NULL;
 		}
 
@@ -102,7 +102,7 @@ miniport_t miniport_create_unbound(int port_number) {
 		ports[port_number] = unbound_port;
 	}
 
-	semaphore_V(mutex);
+	semaphore_V(msgmutex);
 	
     return ports[port_number];
 }
@@ -127,7 +127,7 @@ miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port
 
 	//Check validity of addr
 
-	semaphore_P(mutex);
+	semaphore_P(msgmutex);
 
 	semaphore_P(bound_ports_free); // Wait for a free bound port
 
@@ -141,7 +141,7 @@ miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port
 	bound_port = malloc(sizeof(struct miniport));
 	if (bound_port == NULL) {
 		fprintf(stderr, "ERROR: miniport_create_bound() failed to malloc new miniport\n");
-		semaphore_V(mutex);
+		semaphore_V(msgmutex);
 		return NULL;
 	}
 
@@ -153,7 +153,7 @@ miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port
 
 	ports[bound_ctr] = bound_port;
 
-	semaphore_V(mutex);
+	semaphore_V(msgmutex);
 
     return ports[bound_ctr];
 }
@@ -163,12 +163,12 @@ miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port
  * the time it was destroyed, subsequent behavior is undefined.
  */
 void miniport_destroy(miniport_t miniport) {
-	semaphore_P(mutex);
+	semaphore_P(msgmutex);
 
 	// Check for valid argument
 	if (miniport == NULL){
 		fprintf(stderr, "ERROR: miniport_destroy() was passed a bad argument\n");
-		semaphore_V(mutex);
+		semaphore_V(msgmutex);
 		return;
 	}
 
@@ -181,7 +181,7 @@ void miniport_destroy(miniport_t miniport) {
 	//When to destroy? bounded->thread that used it terminates; unbounded->when last packet waits right there?
 	free(miniport);
 
-	semaphore_V(mutex);
+	semaphore_V(msgmutex);
 }
 
 
@@ -198,6 +198,8 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	network_address_t dest, my_address;
 	mini_header_t hdr;
 
+	semaphore_P(msgmutex);
+
 	// Allocate new header for packet
 	hdr = malloc(sizeof(struct mini_header));
 	if (hdr == NULL) {	//Could not allocate header
@@ -210,15 +212,18 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	network_get_my_address(my_address);
 	pack_address(hdr->source_address, my_address); // Source address
 	pack_unsigned_short(hdr->source_port, local_bound_port->port_num); // Source port
-	dest = local_bound_port->u.bound.remote_address;
+	*dest = *(local_bound_port->u.bound.remote_address);
 	pack_address(hdr->destination_address, dest); // Destination address
 	pack_unsigned_short(hdr->destination_port, local_bound_port->u.bound.remote_unbound_port); // Destination port
 
 	// Call network_send_pkt() from network.hdr
 	if (network_send_pkt(dest, sizeof(hdr), (char*) hdr, sizeof(msg), msg) < 0) {
 		fprintf(stderr, "ERROR: minimsg_send() failed to successfully execute network_send_pkt()\n");
+		semaphore_V(msgmutex);
 		return -1;
 	}
+
+	semaphore_V(msgmutex);
 
     return 0;
 }
