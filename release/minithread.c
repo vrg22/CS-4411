@@ -245,8 +245,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   alarm_queue = queue_new();
 
   // Initialize the network
-  //network_initialize((network_handler_t) network_handler);
-  
+  network_initialize((network_handler_t) &network_handler);
+
   set_interrupt_level(ENABLED);
 
   // OS Code
@@ -355,10 +355,9 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
 
 /*
  * This is the network interrupt packet handling routine.
- * You have to call network_initialize with this
- * function as parameter in minithread_system_initialize
+ * You have to call network_initialize with this function as parameter in minithread_system_initialize
  */
-/*void network_handler(network_interrupt_arg_t* pkt) {     //DOUBLECHECK!!!
+void network_handler(network_interrupt_arg_t* pkt) {     //DOUBLECHECK!!!
   network_address_t addr;
 
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
@@ -372,5 +371,4 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
   //(pkt->buffer, pkt->size)
 
   set_interrupt_level(old_level); // Restore old interrupt level
-}*/
-
+}

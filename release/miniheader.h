@@ -13,8 +13,7 @@ enum { PROTOCOL_MINIDATAGRAM = 1, PROTOCOL_MINISTREAM };
 enum { MSG_SYN = 1, MSG_SYNACK, MSG_ACK, MSG_FIN };
 
 /* header definition for unreliable packets */
-typedef struct mini_header
-{
+typedef struct mini_header {
     char protocol;
 
     char source_address[8];
@@ -22,12 +21,10 @@ typedef struct mini_header
 
     char destination_address[8];
     char destination_port[2];
-
 } *mini_header_t;
 
 /* header definition for reliable packets, note the overlap with mini_header_t */
-typedef struct mini_header_reliable
-{
+typedef struct mini_header_reliable {
     char protocol;
 
     char source_address[8];
@@ -39,7 +36,6 @@ typedef struct mini_header_reliable
     char message_type;
     char seq_number[4];
     char ack_number[4];
-
 } *mini_header_reliable_t;
 
 /* packs a native unsigned short into 2 bytes in network byte order */
