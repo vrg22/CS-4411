@@ -403,7 +403,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
   
   if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
-    if (ports[dest_port] != NULL) {     //Locally unbound port exits
+    if (ports[dest_port] != NULL) {     //Locally unbound port exists
       if (ports[dest_port]->u.unbound.incoming_data != NULL) {  //Queue at locally unbound port has been initialized
         //Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
         queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) buffer, data;

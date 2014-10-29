@@ -36,9 +36,9 @@ void minimsg_initialize() {
     // Initialize each unbound port's data elements
     for (i = UNBOUND_MIN_PORT_NUM; i <= UNBOUND_MAX_PORT_NUM; i++) {
     	miniport_create_unbound(i);
-    	/*ports[i]->u.unbound.incoming_data = queue_new();
+    	ports[i]->u.unbound.incoming_data = queue_new();
     	ports[i]->u.unbound.datagrams_ready = semaphore_create();
-    	semaphore_initialize(ports[i]->u.unbound.datagrams_ready, 0);*/
+    	semaphore_initialize(ports[i]->u.unbound.datagrams_ready, 0);
     }
 }
 
@@ -228,28 +228,31 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
  * of this function is the number of data payload bytes received not inclusive of the header.
  */
 int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, minimsg_t msg, int *len) {
-	// int local_port;
-	int remote_port = 0;
-	network_address_t remote_receive;
+	unsigned short remote_port;
+	char* buffer;
+	network_address_t remote_receive_addr;
 	network_interrupt_arg_t* packet = NULL;
 	// mini_header_t header;
-	minimsg_t payload;
+
+	semaphore_P(msgmutex);
 
 	// Check for valid arguments
 	if (local_unbound_port == NULL) {
 		fprintf(stderr, "ERROR: minimsg_receive() passed a NULL local_unbound_port miniport argument\n");
 		semaphore_V(msgmutex);
-		return 0;
+		return -1;
 	}
 	if (new_local_bound_port == NULL) {
 		fprintf(stderr, "ERROR: minimsg_receive() passed a NULL new_local_bound_port miniport* argument\n");
 		semaphore_V(msgmutex);
-		return 0;
+		return -1;
 	}
 
-	//local_port = local_unbound_port->port_num; // Determine the port that messages will be received on
+	semaphore_V(msgmutex);
 
 	semaphore_P(local_unbound_port->u.unbound.datagrams_ready); // Block until message arrives
+
+	semaphore_P(msgmutex);
 
 	// Obtain received message from miniport queue and extract header data
 	if (queue_dequeue(local_unbound_port->u.unbound.incoming_data, (void*) packet) < 0) {
@@ -259,17 +262,21 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 	}
 
 	// Extract header stuff
-	// header = packet->buffer;
+	buffer = packet->buffer;
+	*len = packet->size;
+	unpack_address(&buffer[1], remote_receive_addr);
+	remote_port = unpack_unsigned_short(&buffer[9]);
+	msg = (minimsg_t) &buffer[21];
 
 	// Create new bound port
-	*new_local_bound_port = miniport_create_bound(remote_receive, remote_port);
+	*new_local_bound_port = miniport_create_bound(remote_receive_addr, remote_port);
 
- 	// msg = ;
- 	// len = ;
  	//return number of bytes of payload actually received (drop stuff beyond max)
 
- 	// free(packet);
+ 	free(buffer);
+ 	free(packet);
 
-    return sizeof(payload);
-    return 0;
+ 	semaphore_V(msgmutex);
+
+    return sizeof(msg);
 }
