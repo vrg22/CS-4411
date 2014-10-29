@@ -233,7 +233,7 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 	network_interrupt_arg_t* packet = NULL;
 	// mini_header_t header;
 
-	semaphore_P(msgmutex);
+	// semaphore_P(msgmutex);
 
 	// Check for valid arguments
 	if (local_unbound_port == NULL) {
@@ -247,14 +247,18 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 		return -1;
 	}
 
-	semaphore_V(msgmutex);
+	// semaphore_V(msgmutex);
+
+	fprintf(stderr, "minimsg_receive() paused\n");
 
 	semaphore_P(local_unbound_port->u.unbound.datagrams_ready); // Block until message arrives
 
-	semaphore_P(msgmutex);
+	fprintf(stderr, "minimsg_receive() resuming\n");
+
+	// semaphore_P(msgmutex);
 
 	// Obtain received message from miniport queue and extract header data
-	if (queue_dequeue(local_unbound_port->u.unbound.incoming_data, (void*) packet) < 0) {
+	if (queue_dequeue(local_unbound_port->u.unbound.incoming_data, (void**) &packet) < 0) {
 		fprintf(stderr, "ERROR: minimsg_send() failed to malloc new mini_header\n");
 		semaphore_V(msgmutex);
 		return -1;
@@ -272,10 +276,10 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 
  	//return number of bytes of payload actually received (drop stuff beyond max)
 
- 	free(buffer);
+ 	// free(buffer);
  	free(packet);
 
- 	semaphore_V(msgmutex);
+ 	// semaphore_V(msgmutex);
 
     return sizeof(msg);
 }

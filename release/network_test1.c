@@ -1,18 +1,3 @@
-/* network test program 5
-
-     send a stream of messages from one computer to another;
-     this test may hang since the message layer (built on UDP) is unreliable, so
-     if a message is lost, the receiver will block indefinitely.
-
-     USAGE: ./network5 <souceport> <destport> [<hostname>]
-
-     sourceport = udp port to listen on.
-     destport     = udp port to send to.
-
-     if no hostname is supplied, will function as the receiver; if a hostname is
-     given, will send to that hostname. receiver must be running first!
-*/
-
 #include "defs.h"
 #include "minithread.h"
 #include "minimsg.h"
@@ -27,8 +12,7 @@
 
 char* hostname;
 
-int
-receive(int* arg) {
+int receive(int* arg) {
     char buffer[BUFFER_SIZE];
     int length;
     int i;
@@ -47,8 +31,7 @@ receive(int* arg) {
     return 0;
 }
 
-int
-transmit(int* arg) {
+int transmit(int* arg) {
     char buffer[BUFFER_SIZE];
     int length;
     int i;
@@ -72,9 +55,7 @@ transmit(int* arg) {
     return 0;
 }
 
-int
-main(int argc, char** argv) {
-
+int main(int argc, char** argv) {
     short fromport, toport;
     fromport = atoi(argv[1]);
     toport = atoi(argv[2]);
@@ -90,4 +71,3 @@ main(int argc, char** argv) {
 
     return -1;
 }
-
