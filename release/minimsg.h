@@ -27,6 +27,22 @@
 #define BOUND_MAX_PORT_NUM 65536
 
 
+struct miniport { 
+ 	char port_type; 
+ 	int port_num;
+	union { 
+ 		struct { 
+ 			queue_t incoming_data; 
+ 			semaphore_t datagrams_ready;
+ 		} unbound; 
+ 	
+		struct { 
+ 			network_address_t remote_address; 
+ 			int remote_unbound_port; 
+ 		} bound; 
+	} u;
+};
+
 typedef struct miniport* miniport_t;
 typedef char* minimsg_t;
 
