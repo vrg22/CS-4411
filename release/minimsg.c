@@ -271,6 +271,8 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 	remote_port = unpack_unsigned_short(&buffer[9]);
 	msg = (minimsg_t) &buffer[21];
 
+	fprintf(stderr, "minimsg_receive() past extracting header stuff\n");
+
 	// Create new bound port
 	*new_local_bound_port = miniport_create_bound(remote_receive_addr, remote_port);
 
