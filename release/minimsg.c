@@ -126,7 +126,6 @@ miniport_t miniport_create_bound(network_address_t addr, int remote_unbound_port
 	bound_port->port_type = BOUND;
 	bound_port->port_num = bound_ctr;
 	network_address_copy(addr, bound_port->u.bound.remote_address);
-	// bound_port->u.bound.remote_address = &addr;
 	bound_port->u.bound.remote_unbound_port = remote_unbound_port_number;
 
 	ports[bound_ctr] = bound_port;
@@ -202,12 +201,12 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	network_get_my_address(my_address);
 	pack_address(hdr->source_address, my_address); // Source address
 	pack_unsigned_short(hdr->source_port, local_bound_port->port_num); // Source port
-	*dest = *(local_bound_port->u.bound.remote_address);
+	network_address_copy(local_bound_port->u.bound.remote_address, dest);
 	pack_address(hdr->destination_address, dest); // Destination address
 	pack_unsigned_short(hdr->destination_port, local_bound_port->u.bound.remote_unbound_port); // Destination port
 
 	// Call network_send_pkt() from network.hdr
-	if (network_send_pkt(dest, sizeof(hdr), (char*) hdr, sizeof(msg), msg) < 0) {
+	if (network_send_pkt(dest, sizeof(struct mini_header), (char*) hdr, len, msg) < 0) {
 		fprintf(stderr, "ERROR: minimsg_send() failed to successfully execute network_send_pkt()\n");
 		semaphore_V(msgmutex);
 		return -1;
