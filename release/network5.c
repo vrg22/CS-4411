@@ -56,8 +56,7 @@ transmit(int* arg) {
     miniport_t port;
     miniport_t dest;
 
-    AbortOnCondition(network_translate_hostname(hostname, addr) < 0,
-                     "Could not resolve hostname, exiting.");
+    AbortOnCondition(network_translate_hostname(hostname, addr) < 0, "Could not resolve hostname, exiting.");
 
     port = miniport_create_unbound(0);
     dest = miniport_create_bound(addr, 1);
