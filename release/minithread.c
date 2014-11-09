@@ -49,61 +49,61 @@ int zombie_limit = 5;                           // Limit on length of zombie que
 /* minithread functions */
 
 minithread_t minithread_fork(proc_t proc, arg_t arg) {
-    minithread_t tcb = minithread_create(proc, arg);
+	minithread_t tcb = minithread_create(proc, arg);
 
-    // Check for argument errors
-    if (tcb == NULL) {
-        fprintf(stderr, "ERROR: minithread_fork() failed to create new minithread_t\n");
-        return NULL;
-    }
-    if (proc == NULL) { // Fail if process pointer is NULL
-      fprintf(stderr, "ERROR: minithread_fork() passed a NULL process pointer\n");
-      return NULL;
-    }
+	// Check for argument errors
+	if (tcb == NULL) {
+		fprintf(stderr, "ERROR: minithread_fork() failed to create new minithread_t\n");
+		return NULL;
+	}
+	if (proc == NULL) { // Fail if process pointer is NULL
+	  fprintf(stderr, "ERROR: minithread_fork() passed a NULL process pointer\n");
+	  return NULL;
+	}
 
-    minithread_start(tcb);
+	minithread_start(tcb);
 
-    return tcb;
+	return tcb;
 }
 
 minithread_t minithread_create(proc_t proc, arg_t arg) {
-    minithread_t tcb;
+	minithread_t tcb;
 
-    if (proc == NULL) { // Fail if process pointer is NULL
-      fprintf(stderr, "ERROR: minithread_create() passed a NULL process pointer\n");
-      return NULL;
-    }
+	if (proc == NULL) { // Fail if process pointer is NULL
+	  fprintf(stderr, "ERROR: minithread_create() passed a NULL process pointer\n");
+	  return NULL;
+	}
 
-    tcb = malloc(sizeof(struct minithread));
+	tcb = malloc(sizeof(struct minithread));
 
-    if (tcb == NULL) { // Fail if malloc() fails
-      fprintf(stderr, "ERROR: minithread_create() failed to malloc new TCB\n");
-      return NULL;
-    }
+	if (tcb == NULL) { // Fail if malloc() fails
+	  fprintf(stderr, "ERROR: minithread_create() failed to malloc new TCB\n");
+	  return NULL;
+	}
 
-    // Set TCB properties
-    tcb->id = ++thread_ctr;
-    tcb->dead = 0;
-    tcb->func = proc;
-    tcb->arg = arg;
-    tcb->run_level = 0; // Add new thread to highest level in run_queue
-    tcb->quanta_left = quanta_level[0];
-    
-    // Set up TCB stack
-    minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); // Allocate new stack
-    minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, (arg_t) tcb); // Initialize stack with proc & cleanup functions
-    
-    return tcb;
+	// Set TCB properties
+	tcb->id = ++thread_ctr;
+	tcb->dead = 0;
+	tcb->func = proc;
+	tcb->arg = arg;
+	tcb->run_level = 0; // Add new thread to highest level in run_queue
+	tcb->quanta_left = quanta_level[0];
+	
+	// Set up TCB stack
+	minithread_allocate_stack(&(tcb->stackbase), &(tcb->stacktop)); // Allocate new stack
+	minithread_initialize_stack(&(tcb->stacktop), proc, arg, /*&*/ minithread_exit, (arg_t) tcb); // Initialize stack with proc & cleanup functions
+	
+	return tcb;
 }
 
 /* */
 minithread_t minithread_self() {
-    return current;
+	return current;
 }
 
 /* */
 int minithread_id() {
-    return current->id;
+	return current->id;
 }
 
 /* Take the current process off the run_queue. Can choose to put in a wait_queue. 
@@ -126,8 +126,8 @@ void minithread_start(minithread_t t) {
   // Place at level 0 by default
   // current->run_level = 0;
   if (multilevel_queue_enqueue(run_queue, t->run_level, t) < 0) {
-    fprintf(stderr, "ERROR: minithread_yield() failed to append thread to end of level 0 in run_queue\n");
-    return;
+	fprintf(stderr, "ERROR: minithread_yield() failed to append thread to end of level 0 in run_queue\n");
+	return;
   }
   semaphore_V(mutex);
 
@@ -143,8 +143,8 @@ void minithread_yield() {
   semaphore_P(mutex);
   /* Move current process to end of its current level in run_queue */
   if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
-    fprintf(stderr, "ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
-    return;
+	fprintf(stderr, "ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
+	return;
   }
   semaphore_V(mutex);
 
@@ -175,32 +175,32 @@ void clock_handler(void* arg) {
   if (clk_count % 10 == 0) fprintf(stderr, "Tock\n");*/
 
   if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
-    alarm_queue = queue_new();
+	alarm_queue = queue_new();
   }
   iter = alarm_queue->head;
   while (iter && (((alarm_t)(iter->data))->deadline <= clk_count * clk_period)) { // While next alarm deadline has passed
-    alarm = (alarm_t) iter->data;
-    func = alarm->func;
-    argument = alarm->arg;
-    func(argument);
-    alarm->executed = 1;
-    deregister_alarm((alarm_id) alarm);
+	alarm = (alarm_t) iter->data;
+	func = alarm->func;
+	argument = alarm->arg;
+	func(argument);
+	alarm->executed = 1;
+	deregister_alarm((alarm_id) alarm);
   }
 
   // Track non-privileged process quanta
   if (current != globaltcb) {  // Applies only to non-OS threads
-    (current->quanta_left)--;    // Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
-    
-    // Time's Up
-    if (current->quanta_left == 0) {
-      current->run_level = (current->run_level + 1) % 4;   // Choose to wrap around processes to have priority "refreshed"
-      current->quanta_left = quanta_level[current->run_level];
-      multilevel_queue_enqueue(run_queue, current->run_level, current);
-      
-      current = globaltcb;
-      // system_run_level = -1;
-      minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
-    }
+	(current->quanta_left)--;    // Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
+	
+	// Time's Up
+	if (current->quanta_left == 0) {
+	  current->run_level = (current->run_level + 1) % 4;   // Choose to wrap around processes to have priority "refreshed"
+	  current->quanta_left = quanta_level[current->run_level];
+	  multilevel_queue_enqueue(run_queue, current->run_level, current);
+	  
+	  current = globaltcb;
+	  // system_run_level = -1;
+	  minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
+	}
   }
 
   set_interrupt_level(old_level); // Restore old interrupt level
@@ -224,8 +224,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Create "OS"/kernel TCB
   globaltcb = (minithread_t) malloc(sizeof(struct minithread));
   if (globaltcb == NULL) { // Fail if malloc() fails
-    fprintf(stderr, "ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
-    return;
+	fprintf(stderr, "ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
+	return;
   }
 
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
@@ -256,16 +256,16 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
   // OS Code
   while (1) {
-    // Periodically free up zombie queue
-    if (queue_length(zombie_queue) == zombie_limit) {
-      queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
-      //queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
-      zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
-    }
+	// Periodically free up zombie queue
+	if (queue_length(zombie_queue) == zombie_limit) {
+	  queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
+	  //queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
+	  zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
+	}
 
-    if (multilevel_queue_length(run_queue) > 0) {
-      minithread_next(globaltcb); // Select next ready process
-    }
+	if (multilevel_queue_length(run_queue) > 0) {
+	  minithread_next(globaltcb); // Select next ready process
+	}
   }  
 }
 
@@ -290,30 +290,30 @@ void minithread_next(minithread_t self) {
   // int i = 0;
 
   /*while (i < run_queue->num_levels) {
-    prob += prob_level[i];
-    if (val < prob) {
-      nxt_lvl = i;
-    }
-    i++;
+	prob += prob_level[i];
+	if (val < prob) {
+	  nxt_lvl = i;
+	}
+	i++;
   }*/
 
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
 
   if (val < prob_level[0])       // Pri 0
-      nxt_lvl = 0;
+	  nxt_lvl = 0;
   else if (val < (prob_level[0] + prob_level[1]))  // Pri 1
-      nxt_lvl = 1;
+	  nxt_lvl = 1;
   else if (val < (prob_level[0] + prob_level[1] + prob_level[2]))  // Pri 2
-      nxt_lvl = 2;
+	  nxt_lvl = 2;
   else   //Pri 3
-      nxt_lvl = 3;
+	  nxt_lvl = 3;
 
   // fprintf(stderr, "%d\n", nxt_lvl); // DEBUG!!!
 
   system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current); // Set new run_level
 
   if (current == NULL) {
-    fprintf(stderr, "ERROR: minithread_next() attempted to context switch to NULL current thread pointer\n");
+	fprintf(stderr, "ERROR: minithread_next() attempted to context switch to NULL current thread pointer\n");
   }
 
   minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process
@@ -397,31 +397,31 @@ void network_handler(network_interrupt_arg_t* pkt) {
   // network_address_copy(pkt->sender, addr);
   
   //TODO:
-    // -Am I the final dest?
-    //   -If NO, call send on this packet
-    //   -If YES, need to place msg at appropriate locally unbound port
-    //     -Q: what to do if port is not already existing? Do I (as interrupt handler) MAKE the receive port?
-    //       Or do I MAKE the port? -> STATE ASSUMPTION HERE
+	// -Am I the final dest?
+	//   -If NO, call send on this packet
+	//   -If YES, need to place msg at appropriate locally unbound port
+	//     -Q: what to do if port is not already existing? Do I (as interrupt handler) MAKE the receive port?
+	//       Or do I MAKE the port? -> STATE ASSUMPTION HERE
 
   
   if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
-    if (ports[dest_port] != NULL) {     //Locally unbound port exists
-      if (ports[dest_port]->u.unbound.incoming_data != NULL) {  //Queue at locally unbound port has been initialized
-        //Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
-        queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) buffer, data;
-        semaphore_V(ports[dest_port]->u.unbound.datagrams_ready);   // V on semaphore
-      } else
-        fprintf(stderr, "queue not set");
-    } else
-      fprintf(stderr, "dest port doesn't exist\n");
-    //Check if port already exists before calling receive, if doesnt, drop packet
-    // Why drop? B/C calling create_unbound in the handler would require semaphore_P(msgmutex), which is not allowed in an interrupt handler
+	if (ports[dest_port] != NULL) {     //Locally unbound port exists
+	  if (ports[dest_port]->u.unbound.incoming_data != NULL) {  //Queue at locally unbound port has been initialized
+		//Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
+		queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) buffer, data;
+		semaphore_V(ports[dest_port]->u.unbound.datagrams_ready);   // V on semaphore
+	  } else
+		fprintf(stderr, "queue not set");
+	} else
+	  fprintf(stderr, "dest port doesn't exist\n");
+	//Check if port already exists before calling receive, if doesnt, drop packet
+	// Why drop? B/C calling create_unbound in the handler would require semaphore_P(msgmutex), which is not allowed in an interrupt handler
   } else {
-    fprintf(stderr, "address not for me\n");//I am NOT the final packet destination
-    // SHOULD I JUST DROP THE PACKET???
-    
-    // DONT CALL SEND HERE! SHOULD BE DONE BY THE PROGRAMMER // minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len);
-    // Do we assume send creates a local bound port to send?
+	fprintf(stderr, "address not for me\n");//I am NOT the final packet destination
+	// SHOULD I JUST DROP THE PACKET???
+	
+	// DONT CALL SEND HERE! SHOULD BE DONE BY THE PROGRAMMER // minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len);
+	// Do we assume send creates a local bound port to send?
   }
 
   //Free packet after processing? -> NO: since I'm enqueueing POINTER to packet itself
