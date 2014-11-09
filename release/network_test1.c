@@ -21,7 +21,7 @@ int receive(int* arg) {
 
     port = miniport_create_unbound(1);
 
-    for (i=0; i<MAX_COUNT; i++) {
+    for (i = 0; i < MAX_COUNT; i++) {
         length = BUFFER_SIZE;
         minimsg_receive(port, &from, buffer, &length);
         printf("%s", buffer);
@@ -39,15 +39,14 @@ int transmit(int* arg) {
     miniport_t port;
     miniport_t dest;
 
-    AbortOnCondition(network_translate_hostname(hostname, addr) < 0,
-                     "Could not resolve hostname, exiting.");
+    AbortOnCondition(network_translate_hostname(hostname, addr) < 0, "Could not resolve hostname, exiting.");
 
     port = miniport_create_unbound(0);
     dest = miniport_create_bound(addr, 1);
 
-    for (i=0; i<MAX_COUNT; i++) {
-        printf("Sending packet %d.\n", i+1);
-        sprintf(buffer, "Count is %d.\n", i+1);
+    for (i = 0; i < MAX_COUNT; i++) {
+        printf("Sending packet %d.\n", i + 1);
+        sprintf(buffer, "Count is %d.\n", i + 1);
         length = strlen(buffer) + 1;
         minimsg_send(port, dest, buffer, length);
     }

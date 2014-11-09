@@ -226,9 +226,11 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
  * data payload and data length via the respective msg and len parameter. The return value
  * of this function is the number of data payload bytes received not inclusive of the header.
  */
-int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, minimsg_t msg, int *len) {
+int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, char* msg, int *len) {
 	unsigned short remote_port;
 	char* buffer;
+	// int size = 0;
+	int i = 0;
 	network_address_t remote_receive_addr;
 	network_interrupt_arg_t* packet = NULL;
 	// mini_header_t header;
@@ -249,11 +251,11 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 
 	// semaphore_V(msgmutex);
 
-	fprintf(stderr, "minimsg_receive() paused\n");
+	// fprintf(stderr, "minimsg_receive() paused\n");
 
 	semaphore_P(local_unbound_port->u.unbound.datagrams_ready); // Block until message arrives
 
-	fprintf(stderr, "minimsg_receive() resuming\n");
+	// fprintf(stderr, "minimsg_receive() resuming\n");
 
 	// semaphore_P(msgmutex);
 
@@ -266,12 +268,25 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 
 	// Extract header stuff
 	buffer = packet->buffer;
-	*len = packet->size;
+	// size = packet->size;
+	// *len = ((packet->size) - 20) / sizeof(char);
+	*len = sizeof(buffer[21]) / sizeof(char);
 	unpack_address(&buffer[1], remote_receive_addr);
 	remote_port = unpack_unsigned_short(&buffer[9]);
-	msg = (minimsg_t) &buffer[21];
+	// msg = (minimsg_t) &buffer[21];
+	// *msg = *((minimsg_t) &buffer[21]);
 
-	fprintf(stderr, "minimsg_receive() past extracting header stuff\n");
+	while (buffer[21 + i]) {
+		msg[i] = buffer[21 + i];
+		i++;
+	}
+
+	// fprintf(stderr, "minimsg_receive() past extracting header stuff\n");
+	/*fprintf(stderr, "minimsg_receive() msg: %s\n", msg);
+	fprintf(stderr, "minimsg_receive() msg size: %d\n", (int) sizeof(msg));
+	fprintf(stderr, "minimsg_receive() len: %d\n", *len);
+	fprintf(stderr, "minimsg_receive() force msg len: %d\n", (int) (sizeof((minimsg_t) &buffer[21]) / sizeof(char)));
+	fprintf(stderr, "minimsg_receive() get body length: %lu\n", sizeof(buffer) / sizeof(buffer[21]) - 20);*/
 
 	// Create new bound port
 	*new_local_bound_port = miniport_create_bound(remote_receive_addr, remote_port);

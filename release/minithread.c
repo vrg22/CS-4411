@@ -371,7 +371,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
 
-  fprintf(stderr, "network_handler()\n");
+  // fprintf(stderr, "network_handler()\n");
 
   // Set my system's address
   network_get_my_address(my_addr);
@@ -410,13 +410,14 @@ void network_handler(network_interrupt_arg_t* pkt) {
         //Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
         queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) buffer, data;
         semaphore_V(ports[dest_port]->u.unbound.datagrams_ready);   // V on semaphore
-      } else fprintf(stderr, "queue not set");
-    } else fprintf(stderr, "dest port doesn't exist\n");
+      } else
+        fprintf(stderr, "queue not set");
+    } else
+      fprintf(stderr, "dest port doesn't exist\n");
     //Check if port already exists before calling receive, if doesnt, drop packet
     // Why drop? B/C calling create_unbound in the handler would require semaphore_P(msgmutex), which is not allowed in an interrupt handler
-  
-  }
-  else {  fprintf(stderr, "address not for me\n");//I am NOT the final packet destination
+  } else {
+    fprintf(stderr, "address not for me\n");//I am NOT the final packet destination
     // SHOULD I JUST DROP THE PACKET???
     
     // DONT CALL SEND HERE! SHOULD BE DONE BY THE PROGRAMMER // minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len);
