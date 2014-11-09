@@ -14,12 +14,16 @@
 #include "network.h"
 #include "minimsg.h"
 
+struct minisocket {
+  int dummy; /* delete this field */
+  /* put your definition of minisockets here */
+};
+
 typedef struct minisocket* minisocket_t;
 typedef enum minisocket_error minisocket_error;
 
-
 enum minisocket_error {
-  SOCKET_NOERROR=0,
+  SOCKET_NOERROR = 0,
   SOCKET_NOMOREPORTS,   /* ran out of free ports */
   SOCKET_PORTINUSE,     /* server tried to use a port that is already in use */
   SOCKET_NOSERVER,      /* client tried to connect to a port without a server */
@@ -29,6 +33,7 @@ enum minisocket_error {
   SOCKET_INVALIDPARAMS, /* user supplied invalid parameters to the function */
   SOCKET_OUTOFMEMORY    /* function could not complete because of insufficient memory */
 };
+
 
 /* Initializes the minisocket layer. */
 void minisocket_initialize();
