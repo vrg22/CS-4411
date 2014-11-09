@@ -23,8 +23,7 @@
 
 miniport_t port;
 
-int
-receive(int* arg) {
+int receive(int* arg) {
     char buffer[BUFFER_SIZE];
     int length;
     int i;
@@ -40,8 +39,7 @@ receive(int* arg) {
   return 0;
 }
 
-int
-transmit(int* arg) {
+int transmit(int* arg) {
     char buffer[BUFFER_SIZE];
     int length;
     int i;
@@ -64,13 +62,10 @@ transmit(int* arg) {
     return 0;
 }
 
-int
-main(int argc, char** argv) {
+int main(int argc, char** argv) {
     short fromport;
     fromport = atoi(argv[1]);
     network_udp_ports(fromport,fromport); 
     minithread_system_initialize(transmit, NULL);
     return -1;
 }
-
-

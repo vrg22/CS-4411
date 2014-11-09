@@ -122,14 +122,14 @@ void minithread_stop() {
 void minithread_start(minithread_t t) {
   interrupt_level_t old_level = set_interrupt_level(DISABLED);        //CHECK!!!
 
-  // semaphore_P(mutex);
+  semaphore_P(mutex);
   // Place at level 0 by default
   // current->run_level = 0;
   if (multilevel_queue_enqueue(run_queue, t->run_level, t) < 0) {
     fprintf(stderr, "ERROR: minithread_yield() failed to append thread to end of level 0 in run_queue\n");
     return;
   }
-  // semaphore_V(mutex);
+  semaphore_V(mutex);
 
   set_interrupt_level(old_level);
 }
@@ -137,16 +137,16 @@ void minithread_start(minithread_t t) {
 void minithread_yield() {
   minithread_t tcb_old;
 
-  set_interrupt_level(DISABLED);        //CHECK!!!
+  set_interrupt_level(DISABLED);
   tcb_old = current;
 
-  // semaphore_P(mutex);
+  semaphore_P(mutex);
   /* Move current process to end of its current level in run_queue */
   if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
     fprintf(stderr, "ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
     return;
   }
-  // semaphore_V(mutex);
+  semaphore_V(mutex);
 
   //Context switch to OS
   current = globaltcb;

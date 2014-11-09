@@ -174,7 +174,7 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	network_address_t dest, my_address;
 	mini_header_t hdr;
 
-	semaphore_P(msgmutex);
+	// semaphore_P(msgmutex);
 
 	// Check for valid arguments
 	if (local_unbound_port == NULL) {
@@ -212,7 +212,7 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 		return -1;
 	}
 
-	semaphore_V(msgmutex);
+	// semaphore_V(msgmutex);
 
     return 0;
 }

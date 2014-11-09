@@ -23,8 +23,7 @@
 miniport_t port1;
 miniport_t port2;
 
-int
-receive1(int* arg) {
+int receive1(int* arg) {
     char buffer[BUFFER_SIZE];
     int length;
     int i;
@@ -40,8 +39,7 @@ receive1(int* arg) {
     return 0;
 }
 
-int
-receive2(int* arg) {
+int receive2(int* arg) {
     char buffer[BUFFER_SIZE];
     int length;
     int i;
@@ -57,8 +55,7 @@ receive2(int* arg) {
     return 0;
 }
 
-int
-transmit(int* arg) {
+int transmit(int* arg) {
     char buffer[BUFFER_SIZE];
     int length;
     int i;
@@ -92,8 +89,7 @@ transmit(int* arg) {
     return 0;
 }
 
-int
-main(int argc, char** argv) {
+int main(int argc, char** argv) {
     short fromport;
     fromport = atoi(argv[1]);
     network_udp_ports(fromport,fromport); 
