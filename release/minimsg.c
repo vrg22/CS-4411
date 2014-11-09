@@ -180,12 +180,12 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	if (local_unbound_port == NULL) {
 		fprintf(stderr, "ERROR: minimsg_send() passed a NULL local_unbound_port miniport argument\n");
 		semaphore_V(msgmutex);
-		return 0;
+		return -1;
 	}
 	if (local_bound_port == NULL) {
 		fprintf(stderr, "ERROR: minimsg_send() passed a NULL local_bound_port miniport argument\n");
 		semaphore_V(msgmutex);
-		return 0;
+		return -1;
 	}
 
 	// Allocate new header for packet
@@ -226,7 +226,7 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
  * data payload and data length via the respective msg and len parameter. The return value
  * of this function is the number of data payload bytes received not inclusive of the header.
  */
-int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, char* msg, int *len) {
+int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_port, minimsg_t msg, int *len) {
 	unsigned short remote_port;
 	char* buffer;
 	// int size = 0;

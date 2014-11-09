@@ -15,8 +15,17 @@
 #include "minimsg.h"
 
 struct minisocket {
-  int dummy; /* delete this field */
-  /* put your definition of minisockets here */
+  //Stuff to manage connection
+
+  // Client or server socket? -> know by port number
+  miniport_t local_port;  //Will be a sending port locally, so bound
+  // miniport_t remote_port;   //Will be a listening port on remote, so unbound     // THIS INFO IS ALREADY PART OF LOCAL PORT
+
+  //minisocket_error?
+  minisocket_error err;
+
+  //current sequence number? Ack number?
+
 };
 
 typedef struct minisocket* minisocket_t;

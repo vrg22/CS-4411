@@ -3,9 +3,18 @@
  */
 #include "minisocket.h"
 
+// minisocket_t* sockets = NULL; // Which local miniports are used by open sockets? Array of miniports for ports
+// semaphore_t bound_ports_free = NULL; // Number of bound miniports free for use in sockets?
+semaphore_t skt_mutex = NULL; // Mutual exclusion semaphore
+
+
+
 /* Initializes the minisocket layer. */
 void minisocket_initialize() {
+	skt_mutex = semaphore_create();
+    semaphore_initialize(skt_mutex, 1);
 
+	// Which ports are used, unused, etc.
 }
 
 /* 
@@ -20,7 +29,23 @@ void minisocket_initialize() {
  * stored in the "error" variable.
  */
 minisocket_t minisocket_server_create(int port, minisocket_error *error) {
+	minisocket_t server;
 
+	// semaphore_P(skt_mutex);
+
+	// Allocate new minisocket
+	server = malloc(sizeof(struct minisocket));
+	if (server == NULL) {	//Could not allocate minisocket
+		fprintf(stderr, "ERROR: minisocket_server_create() failed to malloc new minisocket\n");
+		semaphore_V(msgmutex);
+		return NULL;
+	}
+
+	//Set fields in minisocket
+	server->local_port = miniport_create_bound(/*remote_receive_addr*/, port);	// Create new bound port linked with
+	server->err = SOCKET_NOERROR;
+
+	return server;
 }
 
 
@@ -63,7 +88,12 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
  *               error code and returns -1 if an error is encountered.
  */
 int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_error *error) {
+	Server:
+	//If got MSG_SYN, then return MSG_SYNACK
 
+	Client:
+	//Send Msg_syn packet -> try once, retry 7 times, if no response, return SOCKET_NOSERVER error
+	//ACK the SYNACK
 }
 
 /*
