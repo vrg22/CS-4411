@@ -100,7 +100,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 		}
 
 		// Check for message_type = MSG_SYN; (seq, ack) = (1, 0)
-		if (validate_packet(packet, MSG_SYN, 1, 0)) {
+		if (packet && validate_packet(packet, MSG_SYN, 1, 0)) {
 			syn_done = 1;
 		}
 	}
@@ -246,4 +246,9 @@ int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_
 		return 1;
 	else
 		return 0;
+}
+
+void wait_for_arrival_or_timeout(semaphore_t sema, int timeout) {
+	register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
+	semaphore_P(sema);
 }

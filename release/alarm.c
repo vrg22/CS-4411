@@ -23,7 +23,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
         fprintf(stderr, "ERROR: register_alarm() failed to malloc new alarm_t\n");
         return NULL;
     }
-    new_alarm->deadline = clk_count * clk_period + delay * clk_period / MILLISECOND;
+    new_alarm->deadline = clk_count * clk_period + delay * MILLISECOND;
     new_alarm->func = alarm;
     new_alarm->arg = arg;
     new_alarm->executed = 0;
