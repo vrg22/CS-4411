@@ -19,7 +19,6 @@
 
 #include "miniheader.h"
 #include "minimsg.h"
-#include "minisocket.h"
 
 #include <assert.h>
 
@@ -252,7 +251,6 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Initialize the network and related resources
   network_initialize((network_handler_t) &network_handler);
   minimsg_initialize();
-  minisocket_initialize();
 
   set_interrupt_level(ENABLED);
 
@@ -365,11 +363,11 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  * You have to call network_initialize with this function as parameter in minithread_system_initialize
  */
 void network_handler(network_interrupt_arg_t* pkt) {
-  network_address_t src_addr, dest_addr, my_addr;   //Q: Should my_addr be a global var?
-  unsigned short src_port, dest_port; //Can we pass this to an int? In fact, should we just set this to an int?
-  char* buffer;     //data; //Good style for extra data pointer?
+  network_address_t src_addr, dest_addr, my_addr;
+  unsigned short src_port, dest_port;
+  char* buffer;
   char protocol;
-  int length;
+  // int length;
 
   interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
 
@@ -378,32 +376,17 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
   // Basic packet parameters
   buffer = pkt->buffer;
-  length = pkt->size;   //Header size + Data size (ie num of char elts that matter?)
+  // length = pkt->size;   //Header size + Data size
 
   // Extract req'd info from packet header
   protocol = buffer[0];
 
-  if (protocol == PROTOCOL_MINIDATAGRAM) { //Handle as a UDP datagram
-    //unpack_address(&buffer[1], src_addr); //Where packet originally came from      //Make sure this works
-    //src_port = unpack_unsigned_short(&buffer[9]);
+
+  //Handle as a UDP datagram
+  if (protocol == PROTOCOL_MINIDATAGRAM) {
 
     unpack_address(&buffer[11], dest_addr); //Ultimate packet destination: may need to send it away if it doesn't match my address
     dest_port = unpack_unsigned_short(&buffer[19]);
-
-    // //Create pointer to data payload
-    // data = &buffer[21];
-
-    // Makes sense to never destroy unbound ports? -> YES: WE INITIALIZE UNBOUND PORTS IN MINIMSG INITIALIZE
-    // enqueue at unbound port
-    // network_address_copy(pkt->sender, addr);
-    
-    //TODO:
-  	// -Am I the final dest?
-  	//   -If NO, call send on this packet
-  	//   -If YES, need to place msg at appropriate locally unbound port
-  	//     -Q: what to do if port is not already existing? Do I (as interrupt handler) MAKE the receive port?
-  	//       Or do I MAKE the port? -> STATE ASSUMPTION HERE
-
     
     if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
   	  if (ports[dest_port] != NULL) {     //Locally unbound port exists
@@ -413,58 +396,42 @@ void network_handler(network_interrupt_arg_t* pkt) {
     		  semaphore_V(ports[dest_port]->u.unbound.datagrams_ready);   // V on semaphore
   	    }
         else
-  		    fprintf(stderr, "queue not set");
+  		    fprintf(stderr, "Network handler: queue not set. ERROR\n");
   	  }
       else
-  	    fprintf(stderr, "dest port doesn't exist\n");
-  	    //Check if port already exists before calling receive, if doesnt, drop packet
-  	    // Why drop? B/C calling create_unbound in the handler would require semaphore_P(msgmutex), which is not allowed in an interrupt handler
+  	    fprintf(stderr, "Network handler: dest port doesn't exist. Dropping packet\n");
     } else {
-    	 fprintf(stderr, "address not for me\n");//I am NOT the final packet destination
-    	 // SHOULD I JUST DROP THE PACKET???
-    	
-    	 // DONT CALL SEND HERE! SHOULD BE DONE BY THE PROGRAMMER // minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len);
-    	 // Do we assume send creates a local bound port to send?
+    	 fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
     }
   }
 
 
   //Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
   else {
-    unpack_address(&buffer[1], src_addr); //Where packet originally came from
-    src_port = unpack_unsigned_short(&buffer[9]);
 
-    unpack_address(&buffer[11], dest_addr); //Ultimate packet destination: may need to send it away if it doesn't match my address
-    dest_port = unpack_unsigned_short(&buffer[19]);
-    
+    unpack_address(&buffer[1], src_addr); // Packet's original source address
+    src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
 
-    //TODO:
-    // -Am I the final dest?
-    //   -If NO, call send on this packet
-    //   -If YES, need to place msg at appropriate locally unbound port
-    //     -Q: what to do if port is not already existing? Do I (as interrupt handler) MAKE the receive port?
-    //       Or do I MAKE the port? -> STATE ASSUMPTION HERE
+    unpack_address(&buffer[11], dest_addr); // Ultimate packet destination
+    dest_port = unpack_unsigned_short(&buffer[19]); // Ultimate packet destination's port
 
     if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
-      if (ports[dest_port] != NULL) {     //Locally unbound port exists
-        if (ports[dest_port]->u.unbound.incoming_data != NULL) {  //Queue at locally unbound port has been initialized
-          //Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
-          queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) buffer, data;
-          semaphore_V(ports[dest_port]->u.unbound.datagrams_ready);   // V on semaphore
+      if (sockets[dest_port] != NULL) {     //Local socket exists
+        if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized
+          queue_append(sockets[dest_port]->incoming_data, pkt);
+          semaphore_V(sockets[dest_port]->datagrams_ready);
         }
         else
-          fprintf(stderr, "queue not set");
+          fprintf(stderr, "Network handler: queue not set. ERROR\n");
       }
       else
-        fprintf(stderr, "dest port doesn't exist\n");
-        //Check if port already exists before calling receive, if doesnt, drop packet
-        // Why drop? B/C calling create_unbound in the handler would require semaphore_P(msgmutex), which is not allowed in an interrupt handler    
+        fprintf(stderr, "Network handler: local socket at dest port doesn't exist. Dropping packet\n");
+    } else {
+       fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
     }
   }
 
 
-  //Free packet after processing? -> NO: since I'm enqueueing POINTER to packet itself
-  //free(pkt);
-
   set_interrupt_level(old_level); // Restore old interrupt level
+
 }
