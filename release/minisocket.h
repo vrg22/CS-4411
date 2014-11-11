@@ -11,8 +11,13 @@
  *      miniports and minisockets should coexist.
  */
 
+#include "synch.h"
 #include "network.h"
+#include "alarm.h"
+#include "miniheader.h"
 #include "minimsg.h"
+#include "queue.h"
+#include <stdio.h>
 
 // Define minisocket port num limits
 #define SERVER_MIN_PORT 0
@@ -23,8 +28,9 @@
 #define NUM_SERVER_PORTS (SERVER_MAX_PORT - SERVER_MIN_PORT + 1)
 #define NUM_CLIENT_PORTS (CLIENT_MAX_PORT - CLIENT_MIN_PORT + 1)
 
-extern miniport_t* skt_ports; // Array of miniports for ports
-extern semaphore_t skt_mutex; // Mutual exclusion semaphore
+#define MAX_SEND_ATTEMPTS 7
+#define INITIAL_TIMEOUT 100 // Initial timeout time in [ms]
+
 
 struct minisocket {
   int active; // 1 if socket is connected to another socket; 0 if socket is free/waiting/listening
@@ -38,6 +44,8 @@ struct minisocket {
 
   int seqnum; // Current sequence number
   int acknum; // Current ack number
+
+  alarm_id alarm; // Alarm associated with minisocket's timeout
 };
 
 typedef struct minisocket* minisocket_t;
@@ -54,6 +62,9 @@ enum minisocket_error {
   SOCKET_INVALIDPARAMS, /* user supplied invalid parameters to the function */
   SOCKET_OUTOFMEMORY    /* function could not complete because of insufficient memory */
 };
+
+extern minisocket_t* sockets; // Array of minisockets with each element representing a port
+extern semaphore_t skt_mutex; // Mutual exclusion semaphore
 
 
 /* Initializes the minisocket layer. */
@@ -128,5 +139,18 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
  * function.  The function should never fail.
  */
 void minisocket_close(minisocket_t socket); 
+
+/* Verifies that the packet parameter is of type message_type and has (seq, ack) = (seq_num, ack_num)
+ * Returns 1 of packet satisfies requirements or 0 if otherwise
+ */
+int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_num, int ack_num);
+
+/* Operates similarly to minithread_sleep_with_timeout() but accepts the wake-up semaphore as the first parameter and the timeout in [ms] as the second.
+ * Allows the thread to be woken if either a packet arrives or the timeout finishes.
+ * Requires functions that access socket queues not to assume the queue has at least one element when thread is woken
+ *
+ * Precondition: sema is initialized as a counting semaphore (0)
+ */
+void wait_for_arrival_or_timeout(semaphore_t sema, alarm_id* alarm, int timeout);
 
 #endif /* __MINISOCKETS_H_ */

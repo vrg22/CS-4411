@@ -38,10 +38,10 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	minisocket_t socket;
 	char* buffer;
 	int syn_done;
+	int send_attempts, timeout, received_ACK;
 	network_address_t dest, my_address;
 	mini_header_reliable_t hdr; // Header for sending MSG_SYNACK message
 	network_interrupt_arg_t* packet = NULL;
-
 
 	// semaphore_P(skt_mutex);
 
@@ -84,6 +84,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	socket->incoming_data = queue_new();
 	socket->seqnum = 1;
 	socket->acknum = 0;
+	socket->alarm = NULL;
 
 	sockets[port] = socket; // Add socket to socket ports array
 	used_server_ports++; // Increment server-ports-in-use counter
@@ -114,7 +115,6 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	free(packet);
 
 	// Send SYNACK w/ 7 retries
-
 	// Allocate new header for SYNACK packet
 	hdr = malloc(sizeof(struct mini_header_reliable));
 	if (hdr == NULL) {	// Could not allocate header
@@ -129,29 +129,43 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	network_get_my_address(my_address);
 	pack_address(hdr->source_address, my_address); // Source address
 	pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
-	network_address_copy(local_bound_port->u.bound.remote_address, dest);
 	pack_address(hdr->destination_address, socket->dest_address); // Destination address
 	pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
 	hdr->message_type = MSG_SYNACK;
 	pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
 	pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
 
-	// Call network_send_pkt() from network.h
-	if (network_send_pkt(dest, sizeof(struct mini_header_reliable), (char*) hdr, len, msg) < 0) {
-		fprintf(stderr, "ERROR: minisocket_server_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
-		*error = SOCKET_SENDERROR;
-		// semaphore_V(skt_mutex);
-		return NULL;
+	// Send SYNACK packet
+	send_attempts = 0;
+	timeout = INITIAL_TIMEOUT;
+	received_ACK = 0;
+	while (send_attempts < MAX_SEND_ATTEMPTS && !received_ACK) {
+		if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
+			fprintf(stderr, "ERROR: minisocket_server_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
+			*error = SOCKET_SENDERROR;
+			// semaphore_V(skt_mutex);
+			return NULL;
+		}
+
+		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+
+		if (((alarm_t) socket->alarm)->executed) { // Timeout reached
+			timeout *= 2;
+		} else { // ACK (or equivalent) received
+			received_ACK = 1;
+			socket->active = 1;
+		}
 	}
 
-	// semaphore_V(msgmutex);
+	// semaphore_V(skt_mutex);
 
-    return 0;
-
-
-	// Wait for ACK OR compatible msg (i.e. (2, 1)?
-
-	return socket;
+	if (received_ACK) {
+		*error = SOCKET_NOERROR;
+		return socket;
+	} else {
+		*error = SOCKET_RECEIVEERROR;
+		return NULL;
+	}
 }
 
 
@@ -160,7 +174,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
  * established create a minisocket through which the communication can be made
  * from now on.
  *
- * The first argument is the network address of the remote machine. 
+ * The first argument is the network address of the remote machine.
  *
  * The argument "port" is the port number on the remote machine to which the
  * connection is made. The port number of the local machine is one of the free
@@ -170,13 +184,165 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
  * stored in the "error" variable.
  */
 minisocket_t minisocket_client_create(network_address_t addr, int port, minisocket_error *error) {
+	minisocket_t socket;
+	char* buffer;
+	int local_port = CLIENT_MIN_PORT;
+	int synack_done;
+	int send_attempts, timeout, received_SYNACK;
+	network_address_t dest, my_address;
+	mini_header_reliable_t hdr; // Header for sending MSG_SYNACK message
+	network_interrupt_arg_t* packet = NULL;
+
+	// semaphore_P(skt_mutex);
+
+	// Check for available ports
+	if (used_client_ports >= NUM_CLIENT_PORTS) {
+		fprintf(stderr, "ERROR: minisocket_client_create() unable to execute since no available ports exist\n");
+		*error = SOCKET_NOMOREPORTS;
+		// semaphore_V(skt_mutex);
+		return NULL;
+	}
+
+	// Check for valid arguments
+	if (addr == NULL) {
+		fprintf(stderr, "ERROR: minisocket_client_create() passed NULL network_address_t\n");
+		*error = SOCKET_INVALIDPARAMS;
+		// semaphore_V(skt_mutex);
+		return NULL;
+	}
+	if (port < SERVER_MIN_PORT || port > SERVER_MAX_PORT) {
+		fprintf(stderr, "ERROR: minisocket_client_create() passed invalid remote port number\n");
+		*error = SOCKET_INVALIDPARAMS;
+		// semaphore_V(skt_mutex);
+		return NULL;
+	}
+	if (sockets[port] != NULL) {
+		fprintf(stderr, "ERROR: minisocket_client_create() passed port already in use\n");
+		*error = SOCKET_PORTINUSE;
+		// semaphore_V(skt_mutex);
+		return NULL;
+	}
+
+	// Allocate new minisocket
+	socket = malloc(sizeof(struct minisocket));
+	if (socket == NULL) { // Could not allocate minisocket
+		fprintf(stderr, "ERROR: minisocket_client_create() failed to malloc new minisocket\n");
+		*error = SOCKET_OUTOFMEMORY;
+		// semaphore_V(skt_mutex);
+		return NULL;
+	}
+
+	// Find next unused local port (guaranteed to exist due to counter and verification)
+	while (local_port <= CLIENT_MAX_PORT && sockets[local_port] != NULL) {
+		local_port++; 
+	}
+	if (sockets[local_port] == NULL) {
+		fprintf(stderr, "ERROR: minisocket_client_create() ran out of available ports unexpectedly\n");
+		*error = SOCKET_NOMOREPORTS;
+		// semaphore_V(skt_mutex);
+		return NULL;
+	}
+
+	// Set fields in minisocket
+	socket->active = 0;
+	socket->local_port = local_port;
+	socket->remote_port = port;
+	network_address_copy(addr, socket->dest_address);
+	socket->datagrams_ready = semaphore_create();
+	semaphore_initialize(socket->datagrams_ready, 0);
+	socket->incoming_data = queue_new();
+	socket->seqnum = 1;
+	socket->acknum = 0;
+	socket->alarm = NULL;
+
+	sockets[local_port] = socket; // Add socket to socket ports array
+	used_client_ports++; // Increment client-ports-in-use counter
+
 	// Send MSG_SYN packet to server
 	// Wait timeout, if no response, repeat 7 more times (7 retries)
+	// Allocate new header for SYN packet
+	hdr = malloc(sizeof(struct mini_header_reliable));
+	if (hdr == NULL) {	// Could not allocate header
+		fprintf(stderr, "ERROR: minisocket_client_create() failed to malloc new mini_header_reliable\n");
+		*error = SOCKET_OUTOFMEMORY;
+		// semaphore_V(skt_mutex);
+		return NULL;
+	}
+
+	// Assemble packet header
+	hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
+	network_get_my_address(my_address);
+	pack_address(hdr->source_address, my_address); // Source address
+	pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
+	pack_address(hdr->destination_address, socket->dest_address); // Destination address
+	pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
+	hdr->message_type = MSG_SYN;
+	pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
+	pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
+
+	// Send SYN packet
+	send_attempts = 0;
+	timeout = INITIAL_TIMEOUT;
+	received_SYNACK = 0;
+	while (send_attempts < MAX_SEND_ATTEMPTS && !received_SYNACK) {
+		if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
+			fprintf(stderr, "ERROR: minisocket_client_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
+			*error = SOCKET_SENDERROR;
+			// semaphore_V(skt_mutex);
+			return NULL;
+		}
+
+		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+
+		if (((alarm_t) socket->alarm)->executed) { // Timeout reached
+			timeout *= 2;
+		} else { // ACK (or equivalent received)
+			received_ACK = 1;
+		}
+	}
+
+	// semaphore_V(skt_mutex);
+
+	if (received_ACK) {
+		*error = SOCKET_NOERROR;
+		return socket;
+	} else {
+		*error = SOCKET_RECEIVEERROR;
+		return NULL;
+	}
+
+
+	syn_done = 0;
+	while (!syn_done) {
+		// semaphore_V(skt_mutex);
+		semaphore_P(socket->datagrams_ready); // Block until a message is received (looking for a SYN to establish connection)
+		// semaphore_P(skt_mutex);
+
+		while (queue_dequeue(socket->incoming_data, (void**) &packet) >= 0 && !validate_packet(packet, MSG_SYN, 1, 0)) {
+			// SEND FIN
+		}
+
+		// Check for message_type = MSG_SYN; (seq, ack) = (1, 0)
+		if (packet && validate_packet(packet, MSG_SYN, 1, 0)) {
+			syn_done = 1;
+		}
+	}
+	
+	// Received MSG_SYN with (seq, ack) = (1, 0); extract header stuff
+	socket->acknum++;
+	buffer = packet->buffer; // Header and message data
+	unpack_address(&buffer[1], socket->dest_address);
+	socket->remote_port = unpack_unsigned_short(&buffer[9]);
+
+	free(packet);
+
+	
 	// If still no response, return SOCKET_NOSERVER
 
 	// If receive MSG_SYNACK, send MSG_ACK to server
 	// Connection now open
 
+	return NULL;
 }
 
 
@@ -206,12 +372,14 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
 
 	// Must set timeout to receive ACK and resend packet if no response
 
-	Server:
+	// Server:
 	//If got MSG_SYN, then return MSG_SYNACK
 
-	Client:
+	// Client:
 	//Send Msg_syn packet -> try once, retry 7 times, if no response, return SOCKET_NOSERVER error
 	//ACK the SYNACK
+
+	return 0;
 }
 
 /*
@@ -228,6 +396,8 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
 	semaphore_P(socket->datagrams_ready); // Block until a message is received (looking for a SYN to establish connection)
 	// Must acknowledge each packet upon arrival (provide info about losses)
 	// Must keep track of packets it has already seen (handle duplicates)
+
+	return 0;
 }
 
 /* Close a connection. If minisocket_close is issued, any send or receive should
@@ -242,13 +412,17 @@ void minisocket_close(minisocket_t socket) {
 int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_num, int ack_num) {
 	char* buffer = packet->buffer;
 
-	if (&buffer[21] == message_type && unpack_unsigned_int(&buffer[22]) == seq_num && unpack_unsigned_int(&buffer[26]) == ack_num)
+	if (buffer[21] == message_type && unpack_unsigned_int(&buffer[22]) == seq_num && unpack_unsigned_int(&buffer[26]) == ack_num)
 		return 1;
 	else
 		return 0;
 }
 
-void wait_for_arrival_or_timeout(semaphore_t sema, int timeout) {
-	register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
+void wait_for_arrival_or_timeout(semaphore_t sema, alarm_id* alarm, int timeout) {
+	if (sema == NULL) {
+		fprintf(stderr, "ERROR: wait_for_arrival_or_timeout() passed uninitialized semaphore\n");
+		return;
+	}
+	*alarm = register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
 	semaphore_P(sema);
 }

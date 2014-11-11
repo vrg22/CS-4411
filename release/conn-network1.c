@@ -62,9 +62,9 @@ int transmit(int* arg) {
   int bytes_sent;
   minisocket_t socket;
   minisocket_error error;
-  minithread_t receiver;
+  // minithread_t receiver;
 
-  receiver = minithread_fork(receive, NULL);
+  /*receiver = */minithread_fork(receive, NULL);
 
   socket = minisocket_server_create(port,&error);
   if (socket==NULL){

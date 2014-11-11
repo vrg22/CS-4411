@@ -12,7 +12,11 @@
 #define __MINITHREAD_H__
 
 #include "machineprimitives.h"
+#include "interrupts.h"
 #include "queue.h"
+#include "synch.h"
+#include "alarm.h"
+#include "multilevel_queue.h"
 #include "network.h"
 
 
@@ -37,7 +41,7 @@ struct minithread {
 };
 
 /* CLOCK VARIABLES */
-extern int clk_period;    		// Clock interrupt period
+extern long clk_period;    		// Clock interrupt period
 extern long clk_count;			// Running count of clock interrupts
 extern queue_t alarm_queue;		// Queue containing alarms (soonest deadline at head of queue)
 //Collection of Local miniports

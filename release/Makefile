@@ -10,7 +10,7 @@ default: all
 #    necessary PortOS code.
 #
 # this would be a good place to add your tests
-all: test1 test2 test3 buffer sieve network1 network2 network3 network4 network5 network6 queue_test shop multilevel_queue_test alarm_test network_test1
+all: test1 test2 test3 buffer sieve network1 network2 network3 network4 network5 network6 queue_test shop multilevel_queue_test alarm_test network_test1 conn-network1
 
 # running "make clean" will remove all files ignored by git.  To ignore more
 # files, you should add them to the file .gitignore
@@ -27,6 +27,7 @@ LFLAGS = -lrt -pthread -g
 
 OBJ =                              \
 	minimsg.o                      \
+	minisocket.o                   \
     minithread.o                   \
     interrupts.o                   \
     machineprimitives.o            \

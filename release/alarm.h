@@ -19,14 +19,14 @@ typedef void *alarm_id;
 
 typedef struct alarm *alarm_t;
 struct alarm {
-	int deadline; // Absolute deadline in ms
+	unsigned long long int deadline; // Absolute deadline in ms
 	int executed;
 	void* func;
 	void* arg;
 };
 
 /* CLOCK VARIABLES */
-extern int clk_period;    		// Clock interrupt period
+extern long clk_period;    		// Clock interrupt period
 extern long clk_count;			// Running count of clock interrupts
 
 extern queue_t alarm_queue;	// Queue containing alarms (soonest deadline at head of queue)

@@ -6,7 +6,7 @@
 queue_t alarm_queue = NULL; // Queue containing alarms (soonest deadline at head of queue)
 
 /* CLOCK VARIABLES */
-int clk_period = 100 * MILLISECOND; // Clock interrupt period
+long clk_period = 100 * MILLISECOND; // Clock interrupt period
 long clk_count = 0;                 // Running count of clock interrupts
 
 
@@ -23,7 +23,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
         fprintf(stderr, "ERROR: register_alarm() failed to malloc new alarm_t\n");
         return NULL;
     }
-    new_alarm->deadline = clk_count * clk_period + delay * MILLISECOND;
+    new_alarm->deadline = ((unsigned long long) clk_count) * clk_period + ((unsigned long long) delay) * MILLISECOND;
     new_alarm->func = alarm;
     new_alarm->arg = arg;
     new_alarm->executed = 0;

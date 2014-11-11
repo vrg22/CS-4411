@@ -10,17 +10,13 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "interrupts.h"
+#include <assert.h>
 #include "minithread.h"
-#include "queue.h"
-#include "synch.h"
-#include "alarm.h"
-#include "multilevel_queue.h"
 
 #include "miniheader.h"
 #include "minimsg.h"
+#include "minisocket.h"
 
-#include <assert.h>
 
 /*
  * A minithread should be defined either in this file or in a private
@@ -178,13 +174,14 @@ void clock_handler(void* arg) {
 	alarm_queue = queue_new();
   }
   iter = alarm_queue->head;
-  while (iter && (((alarm_t)(iter->data))->deadline <= clk_count * clk_period)) { // While next alarm deadline has passed
+  while (iter && (((alarm_t)(iter->data))->deadline <= ((unsigned long long) clk_count) * clk_period)) { // While next alarm deadline has passed
 	alarm = (alarm_t) iter->data;
 	func = alarm->func;
 	argument = alarm->arg;
 	func(argument);
 	alarm->executed = 1;
-	deregister_alarm((alarm_id) alarm);
+	// deregister_alarm((alarm_id) alarm);
+    iter = iter->next;
   }
 
   // Track non-privileged process quanta
@@ -251,6 +248,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Initialize the network and related resources
   network_initialize((network_handler_t) &network_handler);
   minimsg_initialize();
+  minisocket_initialize();
 
   set_interrupt_level(ENABLED);
 
@@ -364,7 +362,8 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  */
 void network_handler(network_interrupt_arg_t* pkt) {
   network_address_t src_addr, dest_addr, my_addr;
-  unsigned short src_port, dest_port;
+  unsigned short dest_port;
+  // unsigned short src_port;
   char* buffer;
   char protocol;
   // int length;
@@ -410,7 +409,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
   else {
 
     unpack_address(&buffer[1], src_addr); // Packet's original source address
-    src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
+    // src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
 
     unpack_address(&buffer[11], dest_addr); // Ultimate packet destination
     dest_port = unpack_unsigned_short(&buffer[19]); // Ultimate packet destination's port
@@ -418,6 +417,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
     if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
       if (sockets[dest_port] != NULL) {     //Local socket exists
         if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized
+            // IF their ACK >= my seq STUFF, THEN SEND TO ME AND DISABLE MY ALARM, otherwise discard as old ACK
           queue_append(sockets[dest_port]->incoming_data, pkt);
           semaphore_V(sockets[dest_port]->datagrams_ready);
         }
