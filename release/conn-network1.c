@@ -80,9 +80,7 @@ int transmit(int* arg) {
   /* send the message */
   bytes_sent=0;
   while (bytes_sent!=BUFFER_SIZE){
-    int trans_bytes=
-      minisocket_send(socket,buffer+bytes_sent,
-		      BUFFER_SIZE-bytes_sent, &error);
+    int trans_bytes = minisocket_send(socket, buffer + bytes_sent, BUFFER_SIZE - bytes_sent, &error);
   
     printf("Sent %d bytes.\n",trans_bytes);
 
@@ -122,7 +120,7 @@ int receive(int* arg) {
   network_get_my_address(my_address);
   
   /* create a network connection to the local machine */
-  socket = minisocket_client_create(my_address, port,&error);
+  socket = minisocket_client_create(my_address, port, &error);
   if (socket==NULL){
     printf("ERROR: %s. Exiting. \n",GetErrorDescription(error));
     return -1;
@@ -132,7 +130,7 @@ int receive(int* arg) {
   bytes_received=0;
   while (bytes_received!=BUFFER_SIZE){
     int received_bytes;
-    if ((received_bytes=minisocket_receive(socket,buffer, BUFFER_SIZE-bytes_received, &error))==-1){
+    if ((received_bytes = minisocket_receive(socket,buffer, BUFFER_SIZE-bytes_received, &error)) == -1) {
       printf("ERROR: %s. Exiting. \n",GetErrorDescription(error));
       /* close the connection */
       minisocket_close(socket);

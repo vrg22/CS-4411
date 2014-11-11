@@ -52,8 +52,8 @@ extern int unbound_ctr;
 extern int bound_ctr;
 
 extern miniport_t* ports; // Array of miniports for ports
-extern semaphore_t bound_ports_free = NULL; // Number of bound miniports free
-extern semaphore_t msgmutex = NULL; // Mutual exclusion semaphore
+extern semaphore_t bound_ports_free; // Number of bound miniports free
+extern semaphore_t msgmutex; // Mutual exclusion semaphore
 
 /* performs any required initialization of the minimsg layer.  */
 extern void minimsg_initialize();

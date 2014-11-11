@@ -26,7 +26,7 @@ void minimsg_initialize() {
     semaphore_initialize(bound_ports_free, BOUND_MAX_PORT_NUM - BOUND_MIN_PORT_NUM + 1);
 
     // Initialize ports array
-	ports = (miniport_t*) malloc(BOUND_MAX_PORT_NUM * sizeof(miniport_t));
+	ports = (miniport_t*) malloc((BOUND_MAX_PORT_NUM + 1) * sizeof(miniport_t));
 
 	if (ports == NULL) { // Fail if malloc() fails
       fprintf(stderr, "ERROR: minimsg_initialize() failed to malloc miniport_t array\n");
@@ -261,7 +261,7 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 
 	// Obtain received message from miniport queue and extract header data
 	if (queue_dequeue(local_unbound_port->u.unbound.incoming_data, (void**) &packet) < 0) {
-		fprintf(stderr, "ERROR: minimsg_send() failed to malloc new mini_header\n");
+		fprintf(stderr, "ERROR: minimsg_receive() failed to dequeue message from miniport queue\n");
 		semaphore_V(msgmutex);
 		return -1;
 	}
@@ -293,7 +293,6 @@ int minimsg_receive(miniport_t local_unbound_port, miniport_t* new_local_bound_p
 
  	//return number of bytes of payload actually received (drop stuff beyond max)
 
- 	// free(buffer);
  	free(packet);
 
  	// semaphore_V(msgmutex);
