@@ -14,6 +14,12 @@
 #include "network.h"
 #include "minimsg.h"
 
+extern miniport_t* ports; // Array of miniports for ports
+extern semaphore_t bound_ports_free; // Number of bound miniports free
+extern semaphore_t msgmutex; // Mutual exclusion semaphore
+
+extern int bound_ctr;
+
 struct minisocket {
   //Stuff to manage connection
 
@@ -23,6 +29,8 @@ struct minisocket {
 
   //minisocket_error?
   minisocket_error err;
+
+  // Also need a semaphore to lock minisocket between two sockets?
 
   //current sequence number? Ack number?
 

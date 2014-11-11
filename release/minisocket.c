@@ -15,6 +15,28 @@ void minisocket_initialize() {
     semaphore_initialize(skt_mutex, 1);
 
 	// Which ports are used, unused, etc.
+	if (bound_ports_free == NULL) {
+		bound_ports_free = semaphore_create();
+		semaphore_initialize(bound_ports_free, BOUND_MAX_PORT_NUM - BOUND_MIN_PORT_NUM + 1);
+	}
+
+    // Initialize ports array
+    if (ports == NULL) {
+    	ports = (miniport_t*) malloc(BOUND_MAX_PORT_NUM * sizeof(miniport_t));
+    }
+
+	if (ports == NULL) { // Fail if malloc() fails
+      fprintf(stderr, "ERROR: minimsg_initialize() failed to malloc miniport_t array\n");
+      return;
+    }
+
+    // Initialize each unbound port's data elements
+    for (i = UNBOUND_MIN_PORT_NUM; i <= UNBOUND_MAX_PORT_NUM; i++) {
+    	miniport_create_unbound(i);
+    	ports[i]->u.unbound.incoming_data = queue_new();
+    	ports[i]->u.unbound.datagrams_ready = semaphore_create();
+    	semaphore_initialize(ports[i]->u.unbound.datagrams_ready, 0);
+    }
 }
 
 /* 
@@ -29,23 +51,23 @@ void minisocket_initialize() {
  * stored in the "error" variable.
  */
 minisocket_t minisocket_server_create(int port, minisocket_error *error) {
-	minisocket_t server;
+	minisocket_t socket;
 
 	// semaphore_P(skt_mutex);
 
 	// Allocate new minisocket
-	server = malloc(sizeof(struct minisocket));
-	if (server == NULL) {	//Could not allocate minisocket
+	socket = malloc(sizeof(struct minisocket));
+	if (socket == NULL) {	//Could not allocate minisocket
 		fprintf(stderr, "ERROR: minisocket_server_create() failed to malloc new minisocket\n");
-		semaphore_V(msgmutex);
+		semaphore_V(skt_mutex);
 		return NULL;
 	}
 
 	//Set fields in minisocket
-	server->local_port = miniport_create_bound(/*remote_receive_addr*/, port);	// Create new bound port linked with
-	server->err = SOCKET_NOERROR;
+	socket->local_port = miniport_create_unbound(port);
+	socket->err = SOCKET_NOERROR;
 
-	return server;
+	return socket;
 }
 
 
@@ -64,6 +86,12 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
  * stored in the "error" variable.
  */
 minisocket_t minisocket_client_create(network_address_t addr, int port, minisocket_error *error) {
+	// Send MSG_SYN packet to server
+	// Wait timeout, if no response, repeat 7 more times (7 retries)
+	// If still no response, return SOCKET_NOSERVER
+
+	// If receive MSG_SYNACK, send MSG_ACK to server
+	// Connection now open
 
 }
 
@@ -88,6 +116,12 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
  *               error code and returns -1 if an error is encountered.
  */
 int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_error *error) {
+
+	// Send message w/ MSG_ACK as msg type
+	// Block until we receive acknowledgment or until we give up (in which case return partial result or error)
+
+	// Must set timeout to receive ACK and resend packet if no response
+
 	Server:
 	//If got MSG_SYN, then return MSG_SYNACK
 
@@ -107,7 +141,8 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
  *           bytes received otherwise
  */
 int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisocket_error *error) {
-
+	// Must acknowledge each packet upon arrival (provide info about losses)
+	// Must keep track of packets it has already seen (handle duplicates)
 }
 
 /* Close a connection. If minisocket_close is issued, any send or receive should

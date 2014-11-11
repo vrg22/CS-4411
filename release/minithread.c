@@ -19,6 +19,7 @@
 
 #include "miniheader.h"
 #include "minimsg.h"
+#include "minisocket.h"
 
 #include <assert.h>
 
@@ -251,6 +252,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   // Initialize the network and related resources
   network_initialize((network_handler_t) &network_handler);
   minimsg_initialize();
+  minisocket_initialize();
 
   set_interrupt_level(ENABLED);
 
