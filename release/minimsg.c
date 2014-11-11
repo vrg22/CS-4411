@@ -190,7 +190,7 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 
 	// Allocate new header for packet
 	hdr = malloc(sizeof(struct mini_header));
-	if (hdr == NULL) {	//Could not allocate header
+	if (hdr == NULL) {	// Could not allocate header
 		fprintf(stderr, "ERROR: minimsg_send() failed to malloc new mini_header\n");
 		semaphore_V(msgmutex);
 		return -1;

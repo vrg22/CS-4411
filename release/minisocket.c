@@ -106,6 +106,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	}
 	
 	// Received MSG_SYN with (seq, ack) = (1, 0); extract header stuff
+	socket->acknum++;
 	buffer = packet->buffer; // Header and message data
 	unpack_address(&buffer[1], socket->dest_address);
 	socket->remote_port = unpack_unsigned_short(&buffer[9]);
@@ -113,11 +114,10 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	free(packet);
 
 	// Send SYNACK w/ 7 retries
-	// Construct header
 
 	// Allocate new header for SYNACK packet
 	hdr = malloc(sizeof(struct mini_header_reliable));
-	if (hdr == NULL) {	//Could not allocate header
+	if (hdr == NULL) {	// Could not allocate header
 		fprintf(stderr, "ERROR: minisocket_server_create() failed to malloc new mini_header_reliable\n");
 		*error = SOCKET_OUTOFMEMORY;
 		// semaphore_V(skt_mutex);
@@ -128,16 +128,20 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
 	network_get_my_address(my_address);
 	pack_address(hdr->source_address, my_address); // Source address
-	pack_unsigned_short(hdr->source_port, local_bound_port->port_num); // Source port
+	pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
 	network_address_copy(local_bound_port->u.bound.remote_address, dest);
-	pack_address(hdr->destination_address, dest); // Destination address
-	pack_unsigned_short(hdr->destination_port, local_bound_port->u.bound.remote_unbound_port); // Destination port
+	pack_address(hdr->destination_address, socket->dest_address); // Destination address
+	pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
+	hdr->message_type = MSG_SYNACK;
+	pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
+	pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
 
-	// Call network_send_pkt() from network.hdr
-	if (network_send_pkt(dest, sizeof(struct mini_header), (char*) hdr, len, msg) < 0) {
-		fprintf(stderr, "ERROR: minimsg_send() failed to successfully execute network_send_pkt()\n");
-		semaphore_V(msgmutex);
-		return -1;
+	// Call network_send_pkt() from network.h
+	if (network_send_pkt(dest, sizeof(struct mini_header_reliable), (char*) hdr, len, msg) < 0) {
+		fprintf(stderr, "ERROR: minisocket_server_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
+		*error = SOCKET_SENDERROR;
+		// semaphore_V(skt_mutex);
+		return NULL;
 	}
 
 	// semaphore_V(msgmutex);
