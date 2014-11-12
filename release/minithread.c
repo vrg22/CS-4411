@@ -418,18 +418,16 @@ void network_handler(network_interrupt_arg_t* pkt) {
 		/*Handle Packet*/
 		if (network_compare_network_addresses(dest_addr, my_addr)) {  // This packet IS meant for me
 			if (sockets[dest_port] != NULL) {     //Local socket exists
-		    	if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized -> good way to check???
+		    	if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized - MARK: WE SHOULD BE CHECKING FOR THIS IN _CREATE()
 
-		    		// I am engaged with some connection on this port already
+		    		// I am engaged with some connection on this port already - MARK: I DON'T THINK WE NEED THIS
 		    		if (sockets[dest_port]->active){
 
 		    			// Source of packet is validated against our record
-		    			if (network_compare_network_addresses(sockets[dest_port]->dest_address, src_addr) && 
-		    				(sockets[dest_port]->remote_port == src_port)) {
+		    			if (network_compare_network_addresses(sockets[dest_port]->dest_address, src_addr) && (sockets[dest_port]->remote_port == src_port)) {
 		    				
 				    		// Received packet has valid ACK and SEQ #s wrt my local ACK and SEQ #s, and has valid msg type
-				    		if (((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1)) && 
-				    			(msg_type == MSG_ACK || msg_type == MSG_FIN)) { // CHECK: Should we segregate validity of packet from its purpose as an ACK?
+				    		if (((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1)) && (msg_type == MSG_ACK || msg_type == MSG_FIN)) { // CHECK: Should we segregate validity of packet from its purpose as an ACK?
 
 				    			// Unblock thread waiting for this acknowledgement REGARDLESS of type
 			                    if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) { //You are waking this guy up from a timeout

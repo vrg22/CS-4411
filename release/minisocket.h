@@ -40,6 +40,9 @@ struct minisocket {
   network_address_t dest_address;
 
   semaphore_t datagrams_ready; // Allows socket to wait for messages (i.e. SYNACK, etc.)
+  semaphore_t sending;
+  semaphore_t receiving;
+  semaphore_t timeout;
   queue_t incoming_data; // Queue of incoming messages
 
   int seqnum; // Current sequence number

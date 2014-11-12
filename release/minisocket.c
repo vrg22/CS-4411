@@ -81,6 +81,12 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	socket->local_port = port;
 	socket->datagrams_ready = semaphore_create();
 	semaphore_initialize(socket->datagrams_ready, 0);
+	socket->sending = semaphore_create();
+	semaphore_initialize(socket->sending, 0);
+	socket->receiving = semaphore_create();
+	semaphore_initialize(socket->receiving, 0);
+	socket->timeout = semaphore_create();
+	semaphore_initialize(socket->timeout, 0);
 	socket->incoming_data = queue_new();
 	socket->seqnum = 1;
 	socket->acknum = 0;
@@ -327,23 +333,30 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
  *               error code and returns -1 if an error is encountered.
  */
 int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_error *error) {
+	int result, send_len;
+	int bytes_sent = 0;
+	mini_header_reliable_t header;
 
-	// Send message w/ MSG_ACK as msg type
-	// Block until we receive acknowledgment or until we give up (in which case return partial result or error)
+	semaphore_P(socket->sending);
 
-	// Must set timeout to receive ACK and resend packet if no response
+	// Fragment long messages into smaller packets
+	while (bytes_sent < len) {
+		send_len = ((len - bytes_sent)) > MAX_NETWORK_PKT_SIZE) ? MAX_NETWORK_PKT_SIZE : (len - bytes_sent); // Length of data to send in this packet
+		set_header(minisocket_t socket, mini_header_reliable_t header, MSG_ACK);
+		result = retransmit_packet(minisocket_t socket, header, send_len, msg + bytes_sent, error);
 
-	// Server:
-	//If got MSG_SYN, then return MSG_SYNACK
+		if (result == 1) { // ACK received (packet send successfully)
+			bytes_sent += send_len;
+		} else if (result == 0) { // Timeout
+			// CLOSE CONNECTION (don't forget to release sema)?
+		} else { // Generic failure
+			// UH OH - DO SOME CRAZY ASS SHIT
+		}
+	}
 
-	// Client:
-	//Send Msg_syn packet -> try once, retry 7 times, if no response, return SOCKET_NOSERVER error
-	//ACK the SYNACK
+	if (MAX_NETWORK_PKT_SIZE);
 
-
-
-
-
+	semaphore_V(socket->sending);
 
 	return 0;
 }
