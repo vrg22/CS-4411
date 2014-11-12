@@ -38,8 +38,8 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	minisocket_t socket;
 	char* buffer;
 	int syn_done;
-	int send_attempts, timeout, received_ACK;
-	network_address_t dest, my_address;
+	int /*send_attempts, timeout,*/ received_ACK;
+	// network_address_t dest, my_address;
 	mini_header_reliable_t hdr; // Header for sending MSG_SYNACK message
 	network_interrupt_arg_t* packet = NULL;
 
@@ -88,8 +88,8 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 
 	sockets[port] = socket; // Add socket to socket ports array
 	used_server_ports++; // Increment server-ports-in-use counter
-	
 
+	//Await SYN packet -> how much of this is done by network_handler???
 	syn_done = 0;
 	while (!syn_done) {
 		// semaphore_V(skt_mutex);
@@ -106,13 +106,16 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 		}
 	}
 	
-	// Received MSG_SYN with (seq, ack) = (1, 0); extract header stuff
+	// Received MSG_SYN with (seq, ack) = (1, 0); extract header stuff, update socket infor
 	socket->acknum++;
 	buffer = packet->buffer; // Header and message data
 	unpack_address(&buffer[1], socket->dest_address);
 	socket->remote_port = unpack_unsigned_short(&buffer[9]);
 
 	free(packet);
+
+
+
 
 	// Send SYNACK w/ 7 retries
 	// Allocate new header for SYNACK packet
@@ -125,37 +128,42 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	}
 
 	// Assemble packet header
-	hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
-	network_get_my_address(my_address);
-	pack_address(hdr->source_address, my_address); // Source address
-	pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
-	pack_address(hdr->destination_address, socket->dest_address); // Destination address
-	pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
-	hdr->message_type = MSG_SYNACK;
-	pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
-	pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
+	set_header(socket, hdr, MSG_SYNACK);
+	// hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
+	// network_get_my_address(my_address);
+	// pack_address(hdr->source_address, my_address); // Source address
+	// pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
+	// pack_address(hdr->destination_address, socket->dest_address); // Destination address
+	// pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
+	// hdr->message_type = MSG_SYNACK;
+	// pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
+	// pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
 
-	// Send SYNACK packet
-	send_attempts = 0;
-	timeout = INITIAL_TIMEOUT;
-	received_ACK = 0;
-	while (send_attempts < MAX_SEND_ATTEMPTS && !received_ACK) {
-		if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
-			fprintf(stderr, "ERROR: minisocket_server_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
-			*error = SOCKET_SENDERROR;
-			// semaphore_V(skt_mutex);
-			return NULL;
-		}
 
-		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+	// Send SYNACK packet, expect empty ACK packet
+	received_ACK = retransmit_packet(socket, (char*) hdr, 0, NULL, error);
 
-		if (((alarm_t) socket->alarm)->executed) { // Timeout reached
-			timeout *= 2;
-		} else { // ACK (or equivalent) received
-			received_ACK = 1;
-			socket->active = 1;
-		}
-	}
+	// send_attempts = 0;
+	// timeout = INITIAL_TIMEOUT;
+	// received_ACK = 0;
+	// while (send_attempts < MAX_SEND_ATTEMPTS && !received_ACK) {
+	// 	if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
+	// 		fprintf(stderr, "ERROR: minisocket_server_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
+	// 		*error = SOCKET_SENDERROR;
+	// 		// semaphore_V(skt_mutex);
+	// 		return NULL;
+	// 	}
+
+	// 	wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+
+	// 	if (((alarm_t) socket->alarm)->executed) { // Timeout reached
+	// 		timeout *= 2;
+	// 	} else { // ACK (or equivalent) received
+	// 		received_ACK = 1;
+	// 		socket->active = 1;
+	// 	}
+	// }
+
 
 	// semaphore_V(skt_mutex);
 
@@ -185,13 +193,13 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
  */
 minisocket_t minisocket_client_create(network_address_t addr, int port, minisocket_error *error) {
 	minisocket_t socket;
-	char* buffer;
+	// char* buffer;
 	int local_port = CLIENT_MIN_PORT;
-	int synack_done;
-	int send_attempts, timeout, received_SYNACK;
-	network_address_t dest, my_address;
+	// int synack_done;
+	int /*send_attempts, timeout,*/ received_SYNACK;
+	// network_address_t dest, my_address;
 	mini_header_reliable_t hdr; // Header for sending MSG_SYNACK message
-	network_interrupt_arg_t* packet = NULL;
+	// network_interrupt_arg_t* packet = NULL;
 
 	// semaphore_P(skt_mutex);
 
@@ -260,6 +268,7 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 
 	// Send MSG_SYN packet to server
 	// Wait timeout, if no response, repeat 7 more times (7 retries)
+
 	// Allocate new header for SYN packet
 	hdr = malloc(sizeof(struct mini_header_reliable));
 	if (hdr == NULL) {	// Could not allocate header
@@ -270,40 +279,44 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 	}
 
 	// Assemble packet header
-	hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
-	network_get_my_address(my_address);
-	pack_address(hdr->source_address, my_address); // Source address
-	pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
-	pack_address(hdr->destination_address, socket->dest_address); // Destination address
-	pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
-	hdr->message_type = MSG_SYN;
-	pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
-	pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
+	set_header(socket, hdr, MSG_SYN);
+	// hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
+	// network_get_my_address(my_address);
+	// pack_address(hdr->source_address, my_address); // Source address
+	// pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
+	// pack_address(hdr->destination_address, socket->dest_address); // Destination address
+	// pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
+	// hdr->message_type = MSG_SYN;
+	// pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
+	// pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
 
-	// Send SYN packet
-	send_attempts = 0;
-	timeout = INITIAL_TIMEOUT;
-	received_SYNACK = 0;
-	while (send_attempts < MAX_SEND_ATTEMPTS && !received_SYNACK) {
-		if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
-			fprintf(stderr, "ERROR: minisocket_client_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
-			*error = SOCKET_SENDERROR;
-			// semaphore_V(skt_mutex);
-			return NULL;
-		}
+	// Send SYN packet, expect SYNACK packet
+	received_SYNACK = retransmit_packet(socket, (char*) hdr, 0, NULL, error);
 
-		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+	// send_attempts = 0;
+	// timeout = INITIAL_TIMEOUT;
+	// received_SYNACK = 0;
+	// while (send_attempts < MAX_SEND_ATTEMPTS && !received_SYNACK) {
+	// 	if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
+	// 		fprintf(stderr, "ERROR: minisocket_client_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
+	// 		*error = SOCKET_SENDERROR;
+	// 		// semaphore_V(skt_mutex);
+	// 		return NULL;
+	// 	}
 
-		if (((alarm_t) socket->alarm)->executed) { // Timeout reached
-			timeout *= 2;
-		} else { // ACK (or equivalent received)
-			received_ACK = 1;
-		}
-	}
+	// 	wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+
+	// 	if (((alarm_t) socket->alarm)->executed) { // Timeout reached
+	// 		timeout *= 2;
+	// 	} else { // ACK (or equivalent received)
+	// 		received_SYNACK = 1;
+	// 	}
+	// }
+
 
 	// semaphore_V(skt_mutex);
 
-	if (received_ACK) {
+	if (received_SYNACK) {
 		*error = SOCKET_NOERROR;
 		return socket;
 	} else {
@@ -311,6 +324,10 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 		return NULL;
 	}
 
+
+
+
+	/*
 
 	syn_done = 0;
 	while (!syn_done) {
@@ -343,6 +360,8 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 	// Connection now open
 
 	return NULL;
+
+	*/
 }
 
 
@@ -406,8 +425,12 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
  * function.  The function should never fail.
  */
 void minisocket_close(minisocket_t socket) {
-
+	// TODO
 }
+
+
+
+/* HELPER METHODS */
 
 int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_num, int ack_num) {
 	char* buffer = packet->buffer;
@@ -426,3 +449,53 @@ void wait_for_arrival_or_timeout(semaphore_t sema, alarm_id* alarm, int timeout)
 	*alarm = register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
 	semaphore_P(sema);
 }
+
+/* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
+	(relies on network_handler to get said response). Return -1 on Failure, 0 if Timed out, 1 if Received packet. */
+int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, minisocket_error *error) {
+	int send_attempts, timeout, received_next_packet;
+
+	send_attempts = 0;
+	timeout = INITIAL_TIMEOUT;
+	received_next_packet = 0;
+
+	while (send_attempts < MAX_SEND_ATTEMPTS && !received_next_packet) {
+		if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), hdr, data_len, data) < 0) {
+			fprintf(stderr, "ERROR: retransmit_packet() failed to successfully execute network_send_pkt()\n");
+			*error = SOCKET_SENDERROR;
+			// semaphore_V(skt_mutex);
+			return -1; // 
+		}
+
+		//Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
+		// CHECK: need to enforce mutual exclusion here?
+		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+
+		if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached
+			timeout *= 2;
+		} else { // ACK (or equivalent received)
+			received_next_packet = 1;
+		}
+	}
+
+	return received_next_packet;
+}
+
+
+
+/* Construct a (reliable) header to be sent by the given socket. */
+void set_header(minisocket_t socket, mini_header_reliable_t hdr, char message_type) {
+	network_address_t my_address;
+
+	hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
+	network_get_my_address(my_address);
+	pack_address(hdr->source_address, my_address); // Source address
+	pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
+	pack_address(hdr->destination_address, socket->dest_address); // Destination address
+	pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
+	hdr->message_type = message_type;
+	pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
+	pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
+}
+
+

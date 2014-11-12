@@ -15,10 +15,12 @@ int thread3(int* arg) {
 }
 
 int thread2(int* arg) {
-  minithread_t thread = minithread_fork(thread3, NULL);
+  /*minithread_t thread =*/ minithread_fork(thread3, NULL);
   printf("Thread 2 starts.\n");
-	minithread_sleep_with_timeout(10000); /* ten seconds */
+	minithread_sleep_with_timeout(1000); /* ten seconds */
   printf("Thread 2 just woke up and finishes\n");
+
+  // printf("Curr time: %llu\n", ((unsigned long long) clk_count) * clk_period);
 
   return 0;
 }
@@ -26,9 +28,9 @@ int thread2(int* arg) {
 int thread1(int* arg) {
   minithread_fork(thread2, NULL);
   printf("Thread 1 starts.\n");
-	minithread_sleep_with_timeout(5000); /* five seconds */
+	minithread_sleep_with_timeout(500); /* five seconds */
   printf("Thread 1 just woke up, and is going to sleep again.\n");
-	minithread_sleep_with_timeout(15000); /* fifteen seconds */
+	minithread_sleep_with_timeout(1500); /* fifteen seconds */
   printf("Thread 1 just woke up and finishes\n");
 
   return 0;

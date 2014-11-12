@@ -16,7 +16,7 @@ void functor() {
 }
 
 int thread(int* arg) {
-	register_alarm(5000, (alarm_handler_t) functor, NULL);
+	register_alarm(6400, (alarm_handler_t) functor, NULL);
 	printf("Hello, world!\n");
 	// while (1);
 	// minithread_sleep_with_timeout(5000);

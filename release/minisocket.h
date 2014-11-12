@@ -153,4 +153,12 @@ int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_
  */
 void wait_for_arrival_or_timeout(semaphore_t sema, alarm_id* alarm, int timeout);
 
+/* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
+  (relies on network_handler to get said response). Return -1 on Failure, 0 if Timed out, 1 if Received packet. */
+int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, minisocket_error *error);
+
+/* Construct a (reliable) header to be sent by the given socket. */
+void set_header(minisocket_t socket, mini_header_reliable_t hdr, char message_type);
+
+
 #endif /* __MINISOCKETS_H_ */
