@@ -428,85 +428,67 @@ void network_handler(network_interrupt_arg_t* pkt) {
 		    				(sockets[dest_port]->remote_port == src_port)) {
 		    				
 				    		// Received packet has valid ACK and SEQ #s wrt my local ACK and SEQ #s, and has valid msg type
-				    		if (((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1) && 
+				    		if (((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1)) && 
 				    			(msg_type == MSG_ACK || msg_type == MSG_FIN)) { // CHECK: Should we segregate validity of packet from its purpose as an ACK?
 
 				    			// Unblock thread waiting for this acknowledgement REGARDLESS of type
 			                    if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) { //You are waking this guy up from a timeout
-			                        // deregister_alarm((alarm_id) sockets[dest_port]->alarm);
-			                        semaphore_V(sockets[dest_port]->datagrams_ready); // CHECK: Wrong semaphore??? SHOULD WE MAKE ANOTHER ONE DEDICATED FOR RETRANSMISSION?
+			                        semaphore_V(sockets[dest_port]->datagrams_ready);
+			                        sockets[dest_port]->alarm->executed = 1; // Intermediate state: FAKE that the alarm has been executed so that duplicate acks don't V multiple times!
 			                    }
-			                    // Semaphore_V SHOULD go next to deregister alarm to guarantee that we P and V the same times!!!!
-			                    // semaphore_V(sockets[dest_port]->datagrams_ready); // CHECK: Wrong semaphore??? SHOULD WE MAKE ANOTHER ONE DEDICATED FOR RETRANSMISSION?
 
 								// Non-empty ACK (Data message)
 				            	if (msg_type == MSG_ACK && pkt->size != 0) { // CHECK: Is this good to check this is not an empty ACK?
 				                	if (seq_num == sockets[dest_port]->acknum + 1) { // New data
 				                    	// TODO: Enqueue at socket's receiver (awaiting receive)
 				                    	// TODO: V on appropriate semaphore
-				                    	sockets[dest_port]->ack_num++;
+									        // queue_append(sockets[dest_port]->incoming_data, pkt);
+									        // semaphore_V(sockets[dest_port]->datagrams_ready);
+				                    	sockets[dest_port]->acknum++;
 				                	}
 				                	// Send an empty ACK back (regardless of whether or not this is new data)
+									hdr = malloc(sizeof(struct mini_header_reliable));	// Allocate new header for SYNACK packet
+									if (hdr == NULL) {	// Could not allocate header
+										fprintf(stderr, "ERROR: network_handler() failed to malloc new mini_header_reliable\n");
+										return;
+									}
 				                	set_header(sockets[dest_port], hdr, MSG_ACK);
-				                	if (network_send_pkt(sockets[dest_port]->dest_address, sizeof(struct mini_header_reliable), hdr, 0, NULL) < 0) {
+				                	if (network_send_pkt(sockets[dest_port]->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
 										fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
 										return;
 									}
+				            	}
+
+				            	// MSG_FIN requested on this connection
+				            	else if (msg_type == MSG_FIN) {
+				            		// TODO
 				            	}
 
 								// Empty ACK
 				            	else { //(msg_type == MSG_ACK /*&& pkt->size == 0*/) { // CHECK: Sufficient to ensure empty ACK?
 				                	// NOTHING FURTHER TO DO
 				            	}
-
-				            	// FIN Msg ON my connection...
-				            	else {
-				            		//
-				            	}
-
-
-
 				        	}
-					        queue_append(sockets[dest_port]->incoming_data, pkt);
-					        semaphore_V(sockets[dest_port]->datagrams_ready);
-
-
-
-
-
+		    			
+		    			// Invalid source of packet -> Not the socket we are connected to
+		    			} else {
+		    				//If type is a MSG_SYN (aka request to make connection) & a Valid SYN, send him a FIN
 		    			}
-		    			else {
-		    				//Is NOT from my connection -> IF it's a SYN (aka request to make connection) & a Valid SYN, send him a fin
-		    			}
-		    		} 
 
-		    		// The specified port is connectionless
-		    		else {
-		    			//Look for SYN packets (valid ones or no?), put them in SYN queue???, discard remaining...
+		    		// The specified local socket has NO active connection
+		    		} else {
+		    			// Look for SYN packets (valid ones or no?), put them in SYN queue???, discard remaining...
+		    			// COORDINATE THIS WITH minisocket_server_create !!!!!!!!!!
 		    		}
-
-
-
-
-
-
-
-
-
-
-
-
 
 			    } else
 			        fprintf(stderr, "Network handler: queue not set. ERROR\n");
 			} else
 			    fprintf(stderr, "Network handler: local socket at dest port doesn't exist. Dropping packet\n");
-		} else {
+		} else
 		   fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
-		}
 	}
 
-	
 	// Restore old interrupt level
 	set_interrupt_level(old_level); 
 }

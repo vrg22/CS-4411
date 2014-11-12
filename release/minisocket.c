@@ -389,14 +389,14 @@ int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_
 		return 0;
 }
 
-void wait_for_arrival_or_timeout(semaphore_t sema, alarm_id* alarm, int timeout) {
+void wait_for_arrival_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout) {
 	if (sema == NULL) {
 		fprintf(stderr, "ERROR: wait_for_arrival_or_timeout() passed uninitialized semaphore\n");
 		return;
 	}
-	*alarm = register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
+	*alarm = (alarm_t) register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
 	semaphore_P(sema);
-	deregister_alarm(*alarm); // CHECK: Is this RIGHT? It follows the same pattern as minithread_sleep_with_timeout -> I HOPE!!!
+	deregister_alarm((alarm_id) (*alarm));
 }
 
 /* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
@@ -413,7 +413,7 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 			fprintf(stderr, "ERROR: retransmit_packet() failed to successfully execute network_send_pkt()\n");
 			*error = SOCKET_SENDERROR;
 			// semaphore_V(skt_mutex);
-			return -1; // 
+			return -1; // Failure
 		}
 		fprintf(stderr, "DEBUG: Sent %i with (syn = %iu, ack = %iu) attempt %i", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
 
@@ -421,13 +421,15 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 		// CHECK: need to enforce mutual exclusion here?
 		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);	//CHECK: Is this the CORRECT semaphore to block on?
 
-		if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached
+		// Q: What if you receive the ACK right here after timing out? -> Is that even a case we SHOULD or CAN handle?
+
+		if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached without ACK
 			timeout *= 2;
 		} else { // ACK (or equivalent received)
 			received_next_packet = 1;
-			socket->alarm = NULL;		//No active retransmission alarm
+			socket->alarm = NULL;		// No active retransmission alarm
 
-			// socket->active = 1;			// CHECK: need this HERE if server?
+			// socket->active = 1;		// CHECK: need this HERE if server? PROBABLY WRONG
 		}
 	}
 
