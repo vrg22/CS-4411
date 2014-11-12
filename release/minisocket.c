@@ -105,6 +105,8 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 			syn_done = 1;
 		}
 	}
+
+	
 	
 	// Received MSG_SYN with (seq, ack) = (1, 0); extract header stuff, update socket infor
 	socket->acknum++;

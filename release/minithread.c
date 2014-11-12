@@ -361,11 +361,12 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  * You have to call network_initialize with this function as parameter in minithread_system_initialize
  */
 void network_handler(network_interrupt_arg_t* pkt) {
+	char protocol, msg_type;
 	network_address_t src_addr, dest_addr, my_addr;
 	unsigned short dest_port;
 	// unsigned short src_port;
+	unsigned int seq_num, ack_num;	// of the packet
 	char* buffer;
-	char protocol;
 	// int length;
 
 	interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
@@ -399,36 +400,80 @@ void network_handler(network_interrupt_arg_t* pkt) {
 		} else {
 			 fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
 		}
-	} else { //Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
-		unpack_address(&buffer[1], src_addr); // Packet's original source address
-		// src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
+	} 
+
+  	//Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
+  	else { 
+  		unpack_address(&buffer[1], src_addr); // Packet's original source address
+		src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
+
+  		msg_type = buffer[21];
+		seq_num = unpack_unsigned_int(&buffer[22]);
+		ack_num = unpack_unsigned_int(&buffer[26]);
 
 		unpack_address(&buffer[11], dest_addr); // Ultimate packet destination
 		dest_port = unpack_unsigned_short(&buffer[19]); // Ultimate packet destination's port
 
-		if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
+		if (network_compare_network_addresses(dest_addr, my_addr)) {  // This packet IS meant for me
 			if (sockets[dest_port] != NULL) {     //Local socket exists
-		    	if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized
-		        	if (theirSEQ <= myACK + 1) {
-		            	if (new msg is nonACK) {
-		                	if (theirSEQ == myACK + 1) {
-		                    	send to me
-		                    	myack++
-		                	}
-		                	send empty ack back
-		            	} else { // Got ack
-		                	if (theirSEQ == myACK + 1) { //???
-			                    //Trouble: Get this after you last woke up from a timeout and before went back to sleep in next timeout
-			                    //going back to sleep
-			                    if((socket->alarm->executed) == 0) { //You are waking this guy up from a timeout
-			                        disable my alarm
-			                    }
-			                    semaphore_V(respective sema);
-		                	}
-		            	}
-		        	}
-			        queue_append(sockets[dest_port]->incoming_data, pkt);
-			        semaphore_V(sockets[dest_port]->datagrams_ready);
+		    	if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized -> good way to check???
+
+		    		// I am engaged with some connection on this port already
+		    		if (sockets[dest_port]->active){
+		    			if (network_compare_network_addresses(sockets[dest_port]->dest_address, src_addr) && 
+		    						 (sockets[dest_port]->remote_port == src_port)) { // Source validated
+				    		if (ack_num == sockets[dest_port]->seqnum) { // Received packet has a valid ACK num WRT my local SEQNUM
+				    		// validate_packet(pkt, MSG_ACK, sockets[dest_port]->acknum, sockets[dest_port]->seqnum &&
+				    				// theirSEQ <= myACK + 1 ) //Want packet's acknumber=myseq, but also its seqnum
+
+
+				            	if (!(msg_type == MSG_ACK && /*NO MESSAGE*/)) {	//??? If msg is NOT an empty ack, IE, no data at all
+				                	if (theirSEQ == myACK + 1) {
+				                    	send to me
+				                    	myack++
+				                	}
+				                	// SEND empty ack back
+				            	} else { // Got ack
+				                	if (theirSEQ == myACK + 1) { //???
+					                    //Trouble: Get this after you last woke up from a timeout and before went back to sleep in next timeout
+					                    //going back to sleep
+					                    if((socket->alarm->executed) == 0) { //You are waking this guy up from a timeout
+					                        disable my alarm
+					                    }
+					                    semaphore_V(respective sema);
+				                	}
+				            	}
+				        	}
+					        queue_append(sockets[dest_port]->incoming_data, pkt);
+					        semaphore_V(sockets[dest_port]->datagrams_ready);
+
+
+
+
+
+		    			}
+		    			else {
+		    				//Is NOT from my connection -> IF it's a SYN (aka request to make connection) & a Valid SYN, send him a fin
+		    			}
+		    		} 
+
+		    		// The specified port is connectionless
+		    		else {
+		    			//Look for SYN packets (valid ones or no?), put them in SYN queue???, discard remaining...
+		    		}
+
+
+
+
+
+
+
+
+
+
+
+
+
 			    } else
 			        fprintf(stderr, "Network handler: queue not set. ERROR\n");
 			} else
@@ -437,5 +482,8 @@ void network_handler(network_interrupt_arg_t* pkt) {
 		   fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
 		}
 	}
-	set_interrupt_level(old_level); // Restore old interrupt level
+
+	
+	// Restore old interrupt level
+	set_interrupt_level(old_level); 
 }

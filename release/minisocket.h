@@ -43,7 +43,7 @@ struct minisocket {
   queue_t incoming_data; // Queue of incoming messages
 
   int seqnum; // Current sequence number
-  int acknum; // Current ack number
+  int acknum; // Current (Local) ack number
 
   alarm_id alarm; // Alarm associated with minisocket's timeout
 };
