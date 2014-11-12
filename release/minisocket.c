@@ -115,8 +115,6 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	free(packet);
 
 
-
-
 	// Send SYNACK w/ 7 retries
 	// Allocate new header for SYNACK packet
 	hdr = malloc(sizeof(struct mini_header_reliable));
@@ -129,52 +127,22 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 
 	// Assemble packet header
 	set_header(socket, hdr, MSG_SYNACK);
-	// hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
-	// network_get_my_address(my_address);
-	// pack_address(hdr->source_address, my_address); // Source address
-	// pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
-	// pack_address(hdr->destination_address, socket->dest_address); // Destination address
-	// pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
-	// hdr->message_type = MSG_SYNACK;
-	// pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
-	// pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
-
 
 	// Send SYNACK packet, expect empty ACK packet
 	received_ACK = retransmit_packet(socket, (char*) hdr, 0, NULL, error);
-
-	// send_attempts = 0;
-	// timeout = INITIAL_TIMEOUT;
-	// received_ACK = 0;
-	// while (send_attempts < MAX_SEND_ATTEMPTS && !received_ACK) {
-	// 	if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
-	// 		fprintf(stderr, "ERROR: minisocket_server_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
-	// 		*error = SOCKET_SENDERROR;
-	// 		// semaphore_V(skt_mutex);
-	// 		return NULL;
-	// 	}
-
-	// 	wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
-
-	// 	if (((alarm_t) socket->alarm)->executed) { // Timeout reached
-	// 		timeout *= 2;
-	// 	} else { // ACK (or equivalent) received
-	// 		received_ACK = 1;
-	// 		socket->active = 1;
-	// 	}
-	// }
-
 
 	// semaphore_V(skt_mutex);
 
 	if (received_ACK) {
 		*error = SOCKET_NOERROR;
+		socket->active = 1;			// CHECK: OK to put HERE?
 		return socket;
 	} else {
 		*error = SOCKET_RECEIVEERROR;
 		return NULL;
 	}
 }
+
 
 
 /*
@@ -280,39 +248,9 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 
 	// Assemble packet header
 	set_header(socket, hdr, MSG_SYN);
-	// hdr->protocol = PROTOCOL_MINISTREAM; // Protocol
-	// network_get_my_address(my_address);
-	// pack_address(hdr->source_address, my_address); // Source address
-	// pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
-	// pack_address(hdr->destination_address, socket->dest_address); // Destination address
-	// pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
-	// hdr->message_type = MSG_SYN;
-	// pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
-	// pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
 
 	// Send SYN packet, expect SYNACK packet
 	received_SYNACK = retransmit_packet(socket, (char*) hdr, 0, NULL, error);
-
-	// send_attempts = 0;
-	// timeout = INITIAL_TIMEOUT;
-	// received_SYNACK = 0;
-	// while (send_attempts < MAX_SEND_ATTEMPTS && !received_SYNACK) {
-	// 	if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
-	// 		fprintf(stderr, "ERROR: minisocket_client_create() failed to successfully execute network_send_pkt() to send MSG_SYNACK\n");
-	// 		*error = SOCKET_SENDERROR;
-	// 		// semaphore_V(skt_mutex);
-	// 		return NULL;
-	// 	}
-
-	// 	wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
-
-	// 	if (((alarm_t) socket->alarm)->executed) { // Timeout reached
-	// 		timeout *= 2;
-	// 	} else { // ACK (or equivalent received)
-	// 		received_SYNACK = 1;
-	// 	}
-	// }
-
 
 	// semaphore_V(skt_mutex);
 
@@ -365,6 +303,7 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 }
 
 
+
 /* 
  * Send a message to the other end of the socket.
  *
@@ -398,8 +337,14 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
 	//Send Msg_syn packet -> try once, retry 7 times, if no response, return SOCKET_NOSERVER error
 	//ACK the SYNACK
 
+
+
+
+
+
 	return 0;
 }
+
 
 /*
  * Receive a message from the other end of the socket. Blocks until
@@ -419,6 +364,7 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
 	return 0;
 }
 
+
 /* Close a connection. If minisocket_close is issued, any send or receive should
  * fail.  As soon as the other side knows about the close, it should fail any
  * send or receive in progress. The minisocket is destroyed by minisocket_close
@@ -427,7 +373,6 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
 void minisocket_close(minisocket_t socket) {
 	// TODO
 }
-
 
 
 /* HELPER METHODS */
@@ -475,6 +420,7 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 			timeout *= 2;
 		} else { // ACK (or equivalent received)
 			received_next_packet = 1;
+			// socket->active = 1;			// CHECK: need this HERE if server?
 		}
 	}
 
