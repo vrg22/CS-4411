@@ -363,10 +363,10 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
 void network_handler(network_interrupt_arg_t* pkt) {
 	char protocol, msg_type;
 	network_address_t src_addr, dest_addr, my_addr;
-	unsigned short dest_port;
-	// unsigned short src_port;
+	unsigned short dest_port, src_port;
 	unsigned int seq_num, ack_num;	// of the packet
 	char* buffer;
+	mini_header_reliable_t hdr;
 	// int length;
 
 	interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
@@ -404,6 +404,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
   	//Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
   	else { 
+  		//Unpack relevant fields
   		unpack_address(&buffer[1], src_addr); // Packet's original source address
 		src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
 
@@ -414,35 +415,57 @@ void network_handler(network_interrupt_arg_t* pkt) {
 		unpack_address(&buffer[11], dest_addr); // Ultimate packet destination
 		dest_port = unpack_unsigned_short(&buffer[19]); // Ultimate packet destination's port
 
+		/*Handle Packet*/
 		if (network_compare_network_addresses(dest_addr, my_addr)) {  // This packet IS meant for me
 			if (sockets[dest_port] != NULL) {     //Local socket exists
 		    	if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized -> good way to check???
 
 		    		// I am engaged with some connection on this port already
 		    		if (sockets[dest_port]->active){
+
+		    			// Source of packet is validated against our record
 		    			if (network_compare_network_addresses(sockets[dest_port]->dest_address, src_addr) && 
-		    						 (sockets[dest_port]->remote_port == src_port)) { // Source validated
-				    		if (ack_num == sockets[dest_port]->seqnum) { // Received packet has a valid ACK num WRT my local SEQNUM
-				    		// validate_packet(pkt, MSG_ACK, sockets[dest_port]->acknum, sockets[dest_port]->seqnum &&
-				    				// theirSEQ <= myACK + 1 ) //Want packet's acknumber=myseq, but also its seqnum
+		    				(sockets[dest_port]->remote_port == src_port)) {
+		    				
+				    		// Received packet has valid ACK and SEQ #s wrt my local ACK and SEQ #s, and has valid msg type
+				    		if (((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1) && 
+				    			(msg_type == MSG_ACK || msg_type == MSG_FIN)) { // CHECK: Should we segregate validity of packet from its purpose as an ACK?
 
+				    			// Unblock thread waiting for this acknowledgement REGARDLESS of type
+			                    if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) { //You are waking this guy up from a timeout
+			                        // deregister_alarm((alarm_id) sockets[dest_port]->alarm);
+			                        semaphore_V(sockets[dest_port]->datagrams_ready); // CHECK: Wrong semaphore??? SHOULD WE MAKE ANOTHER ONE DEDICATED FOR RETRANSMISSION?
+			                    }
+			                    // Semaphore_V SHOULD go next to deregister alarm to guarantee that we P and V the same times!!!!
+			                    // semaphore_V(sockets[dest_port]->datagrams_ready); // CHECK: Wrong semaphore??? SHOULD WE MAKE ANOTHER ONE DEDICATED FOR RETRANSMISSION?
 
-				            	if (!(msg_type == MSG_ACK && /*NO MESSAGE*/)) {	//??? If msg is NOT an empty ack, IE, no data at all
-				                	if (theirSEQ == myACK + 1) {
-				                    	send to me
-				                    	myack++
+								// Non-empty ACK (Data message)
+				            	if (msg_type == MSG_ACK && pkt->size != 0) { // CHECK: Is this good to check this is not an empty ACK?
+				                	if (seq_num == sockets[dest_port]->acknum + 1) { // New data
+				                    	// TODO: Enqueue at socket's receiver (awaiting receive)
+				                    	// TODO: V on appropriate semaphore
+				                    	sockets[dest_port]->ack_num++;
 				                	}
-				                	// SEND empty ack back
-				            	} else { // Got ack
-				                	if (theirSEQ == myACK + 1) { //???
-					                    //Trouble: Get this after you last woke up from a timeout and before went back to sleep in next timeout
-					                    //going back to sleep
-					                    if((socket->alarm->executed) == 0) { //You are waking this guy up from a timeout
-					                        disable my alarm
-					                    }
-					                    semaphore_V(respective sema);
-				                	}
+				                	// Send an empty ACK back (regardless of whether or not this is new data)
+				                	set_header(sockets[dest_port], hdr, MSG_ACK);
+				                	if (network_send_pkt(sockets[dest_port]->dest_address, sizeof(struct mini_header_reliable), hdr, 0, NULL) < 0) {
+										fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
+										return;
+									}
 				            	}
+
+								// Empty ACK
+				            	else { //(msg_type == MSG_ACK /*&& pkt->size == 0*/) { // CHECK: Sufficient to ensure empty ACK?
+				                	// NOTHING FURTHER TO DO
+				            	}
+
+				            	// FIN Msg ON my connection...
+				            	else {
+				            		//
+				            	}
+
+
+
 				        	}
 					        queue_append(sockets[dest_port]->incoming_data, pkt);
 					        semaphore_V(sockets[dest_port]->datagrams_ready);

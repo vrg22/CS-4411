@@ -136,8 +136,9 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	// semaphore_V(skt_mutex);
 
 	if (received_ACK) {
+		socket->alarm = NULL;		//No active retransmission alarm
 		*error = SOCKET_NOERROR;
-		socket->active = 1;			// CHECK: OK to put HERE?
+		// socket->active = 1;			// CHECK: OK to put HERE?
 		return socket;
 	} else {
 		*error = SOCKET_RECEIVEERROR;
@@ -395,6 +396,7 @@ void wait_for_arrival_or_timeout(semaphore_t sema, alarm_id* alarm, int timeout)
 	}
 	*alarm = register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
 	semaphore_P(sema);
+	deregister_alarm(*alarm); // CHECK: Is this RIGHT? It follows the same pattern as minithread_sleep_with_timeout -> I HOPE!!!
 }
 
 /* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
@@ -417,12 +419,14 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 
 		// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
 		// CHECK: need to enforce mutual exclusion here?
-		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
+		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);	//CHECK: Is this the CORRECT semaphore to block on?
 
 		if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached
 			timeout *= 2;
 		} else { // ACK (or equivalent received)
 			received_next_packet = 1;
+			socket->alarm = NULL;		//No active retransmission alarm
+
 			// socket->active = 1;			// CHECK: need this HERE if server?
 		}
 	}

@@ -74,6 +74,8 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
 
 /* see alarm.h */
 int deregister_alarm(alarm_id alarm) {
+    // Validate input???
+
 	int executed = ((alarm_t) alarm)->executed;
     if (queue_delete(alarm_queue, (alarm_t) alarm) < 0) {
         fprintf(stderr, "ERROR: deregister_alarm() failed to delete alarm\n");
