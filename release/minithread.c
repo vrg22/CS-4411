@@ -361,77 +361,81 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
  * You have to call network_initialize with this function as parameter in minithread_system_initialize
  */
 void network_handler(network_interrupt_arg_t* pkt) {
-  network_address_t src_addr, dest_addr, my_addr;
-  unsigned short dest_port;
-  // unsigned short src_port;
-  char* buffer;
-  char protocol;
-  // int length;
+	network_address_t src_addr, dest_addr, my_addr;
+	unsigned short dest_port;
+	// unsigned short src_port;
+	char* buffer;
+	char protocol;
+	// int length;
 
-  interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
+	interrupt_level_t old_level = set_interrupt_level(DISABLED); // Disable interrupts
 
-  // Set my system's address
-  network_get_my_address(my_addr);
+	// Set my system's address
+	network_get_my_address(my_addr);
 
-  // Basic packet parameters
-  buffer = pkt->buffer;
-  // length = pkt->size;   //Header size + Data size
+	// Basic packet parameters
+	buffer = pkt->buffer;
+	// length = pkt->size;   //Header size + Data size
 
-  // Extract req'd info from packet header
-  protocol = buffer[0];
-
-
-  //Handle as a UDP datagram
-  if (protocol == PROTOCOL_MINIDATAGRAM) {
-
-    unpack_address(&buffer[11], dest_addr); //Ultimate packet destination: may need to send it away if it doesn't match my address
-    dest_port = unpack_unsigned_short(&buffer[19]);
-    
-    if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
-  	  if (ports[dest_port] != NULL) {     //Locally unbound port exists
-  	    if (ports[dest_port]->u.unbound.incoming_data != NULL) {  //Queue at locally unbound port has been initialized
-    		  //Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
-    		  queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) buffer, data;
-    		  semaphore_V(ports[dest_port]->u.unbound.datagrams_ready);   // V on semaphore
-  	    }
-        else
-  		    fprintf(stderr, "Network handler: queue not set. ERROR\n");
-  	  }
-      else
-  	    fprintf(stderr, "Network handler: dest port doesn't exist. Dropping packet\n");
-    } else {
-    	 fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
-    }
-  }
+	// Extract req'd info from packet header
+	protocol = buffer[0];
 
 
-  //Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
-  else {
+	//Handle as a UDP datagram
+	if (protocol == PROTOCOL_MINIDATAGRAM) {
+		unpack_address(&buffer[11], dest_addr); //Ultimate packet destination: may need to send it away if it doesn't match my address
+		dest_port = unpack_unsigned_short(&buffer[19]);
 
-    unpack_address(&buffer[1], src_addr); // Packet's original source address
-    // src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
+		if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
+			if (ports[dest_port] != NULL) {     //Locally unbound port exists
+			    if (ports[dest_port]->u.unbound.incoming_data != NULL) {  //Queue at locally unbound port has been initialized
+					//Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
+					queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) buffer, data;
+					semaphore_V(ports[dest_port]->u.unbound.datagrams_ready);   // V on semaphore
+			    } else
+			    	fprintf(stderr, "Network handler: queue not set. ERROR\n");
+			} else
+		    	fprintf(stderr, "Network handler: dest port doesn't exist. Dropping packet\n");
+		} else {
+			 fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
+		}
+	} else { //Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
+		unpack_address(&buffer[1], src_addr); // Packet's original source address
+		// src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
 
-    unpack_address(&buffer[11], dest_addr); // Ultimate packet destination
-    dest_port = unpack_unsigned_short(&buffer[19]); // Ultimate packet destination's port
+		unpack_address(&buffer[11], dest_addr); // Ultimate packet destination
+		dest_port = unpack_unsigned_short(&buffer[19]); // Ultimate packet destination's port
 
-    if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
-      if (sockets[dest_port] != NULL) {     //Local socket exists
-        if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized
-            // IF their ACK >= my seq STUFF, THEN SEND TO ME AND DISABLE MY ALARM, otherwise discard as old ACK
-          queue_append(sockets[dest_port]->incoming_data, pkt);
-          semaphore_V(sockets[dest_port]->datagrams_ready);
-        }
-        else
-          fprintf(stderr, "Network handler: queue not set. ERROR\n");
-      }
-      else
-        fprintf(stderr, "Network handler: local socket at dest port doesn't exist. Dropping packet\n");
-    } else {
-       fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
-    }
-  }
-
-
-  set_interrupt_level(old_level); // Restore old interrupt level
-
+		if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
+			if (sockets[dest_port] != NULL) {     //Local socket exists
+		    	if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized
+		        	if (theirSEQ <= myACK + 1) {
+		            	if (new msg is nonACK) {
+		                	if (theirSEQ == myACK + 1) {
+		                    	send to me
+		                    	myack++
+		                	}
+		                	send empty ack back
+		            	} else { // Got ack
+		                	if (theirSEQ == myACK + 1) { //???
+			                    //Trouble: Get this after you last woke up from a timeout and before went back to sleep in next timeout
+			                    //going back to sleep
+			                    if((socket->alarm->executed) == 0) { //You are waking this guy up from a timeout
+			                        disable my alarm
+			                    }
+			                    semaphore_V(respective sema);
+		                	}
+		            	}
+		        	}
+			        queue_append(sockets[dest_port]->incoming_data, pkt);
+			        semaphore_V(sockets[dest_port]->datagrams_ready);
+			    } else
+			        fprintf(stderr, "Network handler: queue not set. ERROR\n");
+			} else
+			    fprintf(stderr, "Network handler: local socket at dest port doesn't exist. Dropping packet\n");
+		} else {
+		   fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
+		}
+	}
+	set_interrupt_level(old_level); // Restore old interrupt level
 }

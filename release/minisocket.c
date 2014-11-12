@@ -411,8 +411,9 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 			// semaphore_V(skt_mutex);
 			return -1; // 
 		}
+		fprintf(stderr, "DEBUG: Sent %i with (syn = %iu, ack = %iu) attempt %i", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
 
-		//Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
+		// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
 		// CHECK: need to enforce mutual exclusion here?
 		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);
 
@@ -439,9 +440,7 @@ void set_header(minisocket_t socket, mini_header_reliable_t hdr, char message_ty
 	pack_unsigned_short(hdr->source_port, socket->local_port); // Source port
 	pack_address(hdr->destination_address, socket->dest_address); // Destination address
 	pack_unsigned_short(hdr->destination_port, socket->remote_port); // Destination port
-	hdr->message_type = message_type;
+	hdr->message_type = message_type; // Message type
 	pack_unsigned_int(hdr->seq_number, socket->seqnum); // Sequence number
 	pack_unsigned_int(hdr->ack_number, socket->acknum); // Acknowledgment number
 }
-
-
