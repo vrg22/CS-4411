@@ -443,7 +443,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 						        semaphore_V(sockets[dest_port]->datagrams_ready);
 	    					}
 
-	    					// Send an empty ACK back (regardless of whether or not this is new data)
+	    					// Send an empty ACK back
 							hdr = malloc(sizeof(struct mini_header_reliable));	// Allocate new header for ACK packet
 							if (hdr == NULL) {	// Could not allocate header
 								fprintf(stderr, "ERROR: network_handler() failed to malloc new mini_header_reliable\n");
@@ -475,7 +475,23 @@ void network_handler(network_interrupt_arg_t* pkt) {
 							}
 	    				}
 	    			} else if (msg_type == MSG_SYNACK) {
-	    				// DO SHIT
+	    				// Disable timeout alert
+	    				if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) {
+    						semaphore_V(sockets[dest_port]->timeout);
+    					}
+    					sockets[dest_port]->alarm->executed = 1;
+
+	    				// Send an empty ACK back
+						hdr = malloc(sizeof(struct mini_header_reliable));	// Allocate new header for ACK packet
+						if (hdr == NULL) {	// Could not allocate header
+							fprintf(stderr, "ERROR: network_handler() failed to malloc new mini_header_reliable\n");
+							return;
+						}
+	                	set_header(sockets[dest_port], hdr, MSG_ACK);
+	                	if (network_send_pkt(sockets[dest_port]->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
+							fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
+							return;
+						}
 	    			} else if (msg_type == MSG_FIN) {
 	    				// THROW FATASS ERRORS
 	    			}

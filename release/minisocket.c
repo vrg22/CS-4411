@@ -205,7 +205,7 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 		// semaphore_V(skt_mutex);
 		return NULL;
 	}
-	if (sockets[port] != NULL) {
+	if (sockets[local_port] != NULL) {
 		fprintf(stderr, "ERROR: minisocket_client_create() passed port already in use\n");
 		*error = SOCKET_PORTINUSE;
 		// semaphore_V(skt_mutex);
@@ -225,7 +225,7 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 	while (local_port <= CLIENT_MAX_PORT && sockets[local_port] != NULL) {
 		local_port++; 
 	}
-	if (sockets[local_port] == NULL) {
+	if (sockets[local_port] != NULL) {
 		fprintf(stderr, "ERROR: minisocket_client_create() ran out of available ports unexpectedly\n");
 		*error = SOCKET_NOMOREPORTS;
 		// semaphore_V(skt_mutex);
@@ -245,6 +245,8 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 	semaphore_initialize(socket->receiving, 0);
 	socket->timeout = semaphore_create();
 	semaphore_initialize(socket->timeout, 0);
+	socket->wait_syn = semaphore_create();
+	semaphore_initialize(socket->wait_syn, 0);
 	socket->incoming_data = queue_new();
 	socket->seqnum = 1;
 	socket->acknum = 0;
@@ -369,9 +371,17 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
  *           bytes received otherwise
  */
 int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisocket_error *error) {
+	int packets_remaining = 1;
+
 	semaphore_P(socket->receiving); // Block until a message is received (looking for a SYN to establish connection)
 	// Must acknowledge each packet upon arrival (provide info about losses)
 	// Must keep track of packets it has already seen (handle duplicates)
+
+	semaphore_P(socket->datagrams_ready);
+
+	while (packets_remaining) {
+		// do stuff
+	}
 
 	semaphore_V(socket->receiving);
 
@@ -426,7 +436,7 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 			// semaphore_V(skt_mutex);
 			return -1; // Failure
 		}
-		fprintf(stderr, "DEBUG: Sent %i with (syn = %iu, ack = %iu) attempt %i", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
+		fprintf(stderr, "DEBUG: Sent %i with (syn = %i, ack = %i) attempt %i", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
 
 		// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
 		// CHECK: need to enforce mutual exclusion here?
