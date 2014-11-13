@@ -363,7 +363,8 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
 void network_handler(network_interrupt_arg_t* pkt) {
 	char protocol, msg_type;
 	network_address_t src_addr, dest_addr, my_addr;
-	unsigned short dest_port, src_port;
+	unsigned short dest_port;
+	// unsigned short src_port;
 	unsigned int seq_num, ack_num;	// of the packet
 	char* buffer;
 	mini_header_reliable_t hdr;
@@ -403,10 +404,10 @@ void network_handler(network_interrupt_arg_t* pkt) {
 	} 
 
   	//Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
-  	else { 
+  	else {
   		//Unpack relevant fields
   		unpack_address(&buffer[1], src_addr); // Packet's original source address
-		src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
+		// src_port = unpack_unsigned_short(&buffer[9]); // Packet's original source port
 
   		msg_type = buffer[21];
 		seq_num = unpack_unsigned_int(&buffer[22]);
@@ -417,70 +418,68 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
 		/*Handle Packet*/
 		if (network_compare_network_addresses(dest_addr, my_addr)) {  // This packet IS meant for me
-			if (sockets[dest_port] != NULL) {     //Local socket exists
-		    	if (sockets[dest_port]->incoming_data != NULL) {  //Queue at local socket has been initialized - MARK: WE SHOULD BE CHECKING FOR THIS IN _CREATE()
+			if (sockets[dest_port] != NULL) { // Local socket exists
+	    		// Received packet has valid ACK and SEQ #s wrt my local ACK and SEQ #s
+	    		if ((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1)) {
+	    			// Take actions depending on packet type
+	    			if (msg_type == MSG_ACK) {
+	    				// Consider cases of empty ACK vs. data ACK
+	    				if (pkt->size == 0) { // Empty ACK
+	    					if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) {
+	    						semaphore_V(sockets[dest_port]->timeout);
+	    					}
+	    					sockets[dest_port]->alarm->executed = 1;
+	    				} else { // Data ACK
+	    					if (seq_num == sockets[dest_port]->acknum + 1) { // First arrival of message
+	    						sockets[dest_port]->acknum++;
 
-		    		// I am engaged with some connection on this port already - MARK: I DON'T THINK WE NEED THIS
-		    		if (sockets[dest_port]->active){
+	    						// Treat data ACK as an empty ACK if something is awaiting an ACK
+	    						if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) {
+		    						semaphore_V(sockets[dest_port]->timeout);
+		    					}
+		    					sockets[dest_port]->alarm->executed = 1;
 
-		    			// Source of packet is validated against our record
-		    			if (network_compare_network_addresses(sockets[dest_port]->dest_address, src_addr) && (sockets[dest_port]->remote_port == src_port)) {
-		    				
-				    		// Received packet has valid ACK and SEQ #s wrt my local ACK and SEQ #s, and has valid msg type
-				    		if (((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1)) && (msg_type == MSG_ACK || msg_type == MSG_FIN)) { // CHECK: Should we segregate validity of packet from its purpose as an ACK?
+		    					queue_append(sockets[dest_port]->incoming_data, pkt);
+						        semaphore_V(sockets[dest_port]->datagrams_ready);
+	    					}
 
-				    			// Unblock thread waiting for this acknowledgement REGARDLESS of type
-			                    if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) { //You are waking this guy up from a timeout
-			                        semaphore_V(sockets[dest_port]->datagrams_ready);
-			                        sockets[dest_port]->alarm->executed = 1; // Intermediate state: FAKE that the alarm has been executed so that duplicate acks don't V multiple times!
-			                    }
-
-								// Non-empty ACK (Data message)
-				            	if (msg_type == MSG_ACK && pkt->size != 0) { // CHECK: Is this good to check this is not an empty ACK?
-				                	if (seq_num == sockets[dest_port]->acknum + 1) { // New data
-				                    	// TODO: Enqueue at socket's receiver (awaiting receive)
-				                    	// TODO: V on appropriate semaphore
-									        // queue_append(sockets[dest_port]->incoming_data, pkt);
-									        // semaphore_V(sockets[dest_port]->datagrams_ready);
-				                    	sockets[dest_port]->acknum++;
-				                	}
-				                	// Send an empty ACK back (regardless of whether or not this is new data)
-									hdr = malloc(sizeof(struct mini_header_reliable));	// Allocate new header for SYNACK packet
-									if (hdr == NULL) {	// Could not allocate header
-										fprintf(stderr, "ERROR: network_handler() failed to malloc new mini_header_reliable\n");
-										return;
-									}
-				                	set_header(sockets[dest_port], hdr, MSG_ACK);
-				                	if (network_send_pkt(sockets[dest_port]->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
-										fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
-										return;
-									}
-				            	}
-
-				            	// MSG_FIN requested on this connection
-				            	else if (msg_type == MSG_FIN) {
-				            		// TODO
-				            	}
-
-								// Empty ACK
-				            	else { //(msg_type == MSG_ACK /*&& pkt->size == 0*/) { // CHECK: Sufficient to ensure empty ACK?
-				                	// NOTHING FURTHER TO DO
-				            	}
-				        	}
-		    			
-		    			// Invalid source of packet -> Not the socket we are connected to
-		    			} else {
-		    				//If type is a MSG_SYN (aka request to make connection) & a Valid SYN, send him a FIN
-		    			}
-
-		    		// The specified local socket has NO active connection
-		    		} else {
-		    			// Look for SYN packets (valid ones or no?), put them in SYN queue???, discard remaining...
-		    			// COORDINATE THIS WITH minisocket_server_create !!!!!!!!!!
-		    		}
-
-			    } else
-			        fprintf(stderr, "Network handler: queue not set. ERROR\n");
+	    					// Send an empty ACK back (regardless of whether or not this is new data)
+							hdr = malloc(sizeof(struct mini_header_reliable));	// Allocate new header for ACK packet
+							if (hdr == NULL) {	// Could not allocate header
+								fprintf(stderr, "ERROR: network_handler() failed to malloc new mini_header_reliable\n");
+								return;
+							}
+		                	set_header(sockets[dest_port], hdr, MSG_ACK);
+		                	if (network_send_pkt(sockets[dest_port]->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
+								fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
+								return;
+							}
+	    				}
+	    			} else if (msg_type == MSG_SYN) {
+	    				if (!sockets[dest_port]->active) { // Socket not previously in communication
+	    					sockets[dest_port]->acknum++;
+	    					sockets[dest_port]->active = 1;
+	    					unpack_address(&buffer[1], sockets[dest_port]->dest_address);
+							sockets[dest_port]->remote_port = unpack_unsigned_short(&buffer[9]);
+	    					semaphore_V(sockets[dest_port]->wait_syn);
+	    				} else { // Socket in use - send FIN
+							hdr = malloc(sizeof(struct mini_header_reliable));	// Allocate new header for FIN packet
+							if (hdr == NULL) {	// Could not allocate header
+								fprintf(stderr, "ERROR: network_handler() failed to malloc new mini_header_reliable\n");
+								return;
+							}
+		                	set_header(sockets[dest_port], hdr, MSG_FIN);
+		                	if (network_send_pkt(sockets[dest_port]->dest_address, sizeof(struct mini_header_reliable), (char*) hdr, 0, NULL) < 0) {
+								fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
+								return;
+							}
+	    				}
+	    			} else if (msg_type == MSG_SYNACK) {
+	    				// DO SHIT
+	    			} else if (msg_type == MSG_FIN) {
+	    				// THROW FATASS ERRORS
+	    			}
+	        	}
 			} else
 			    fprintf(stderr, "Network handler: local socket at dest port doesn't exist. Dropping packet\n");
 		} else
