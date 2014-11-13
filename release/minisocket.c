@@ -436,7 +436,7 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 			// semaphore_V(skt_mutex);
 			return -1; // Failure
 		}
-		fprintf(stderr, "DEBUG: Sent %i with (syn = %i, ack = %i) attempt %i", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
+		fprintf(stderr, "DEBUG: Sent %i with (syn = %i, ack = %i) attempt %i\n", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
 
 		// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
 		// CHECK: need to enforce mutual exclusion here?
@@ -446,6 +446,7 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 
 		if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached without ACK
 			timeout *= 2;
+			send_attempts++;
 		} else { // ACK (or equivalent received)
 			received_next_packet = 1;
 			socket->alarm = NULL;		// No active retransmission alarm

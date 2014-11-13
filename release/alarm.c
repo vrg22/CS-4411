@@ -58,13 +58,29 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
     		iter = iter->next;
     	}
 
-    	// New alarm has latest deadline; insert at end of queue (iter now points to alarm_queue->head)
+    	// New alarm has latest deadline; insert at end of queue (iter now points to alarm_queue->TAIL       NOT  head)
     	if (not_added) {
-    		elem->next = iter;
-    		elem->prev = iter->prev;
-    		iter->prev->next = elem;
-    		iter->prev = elem;
-   			alarm_queue->tail = elem;
+            queue_append(alarm_queue, new_alarm);
+            // elem->data = NULL;
+            // free(elem);
+
+
+            /* Below is probably wrong */
+            // elem->next = iter->next;        //Head of queue
+            // elem->prev = iter;
+            // elem->prev->next = elem;
+            // elem->next->prev = elem; 
+            // //iter->next = elem;
+            // //iter->next = elem;
+            // //iter->prev = (iter->prev == iter) ? elem : iter->prev;
+            // alarm_queue->tail = elem;
+
+            /*Below is wrong...*/
+    		// elem->next = iter;
+    		// elem->prev = iter->prev;
+    		// iter->prev->next = elem;
+    		// iter->prev = elem;
+   			// alarm_queue->tail = elem;
     		not_added = 0;
     	}
     }
@@ -74,12 +90,17 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
 
 /* see alarm.h */
 int deregister_alarm(alarm_id alarm) {
-    // Validate input???
+    // void* temp;
 
 	int executed = ((alarm_t) alarm)->executed;
+
     if (queue_delete(alarm_queue, (alarm_t) alarm) < 0) {
         fprintf(stderr, "ERROR: deregister_alarm() failed to delete alarm\n");
     }
+
+    // if (queue_dequeue(alarm_queue, &temp) < 0) {
+    //     fprintf(stderr, "ERROR: deregister_alarm() failed to DEQUEUE alarm\n");
+    // }
 
     return executed;
 }

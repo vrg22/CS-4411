@@ -167,22 +167,50 @@ void clock_handler(void* arg) {
   clk_count++; // Increment clock count
 
   // Debug statements to check if clock_handler() is working
-  /*if (clk_count % 10 != 0 && clk_count % 1 == 0) fprintf(stderr, "Tick\n");
-  if (clk_count % 10 == 0) fprintf(stderr, "Tock\n");*/
+  // if (clk_count % 10 != 0 && clk_count % 1 == 0) fprintf(stderr, "Tick\n");
+  // if (clk_count % 10 == 0) fprintf(stderr, "TOCK\n");
 
   if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
-	alarm_queue = queue_new();
+	 alarm_queue = queue_new();
   }
   iter = alarm_queue->head;
-  while (iter && (((alarm_t)(iter->data))->deadline <= ((unsigned long long) clk_count) * clk_period)) { // While next alarm deadline has passed
-	alarm = (alarm_t) iter->data;
-	func = alarm->func;
-	argument = alarm->arg;
-	func(argument);
-	alarm->executed = 1;
-	// deregister_alarm((alarm_id) alarm);
-    iter = iter->next;
+  
+  // if (iter == NULL){
+  //   fprintf(stderr, "Iter is NULL\n");
+  // }
+  // else if (iter->data == NULL){
+  //   fprintf(stderr, "Iter->data is NULL\n");
+  // }
+  // fprintf(stderr, "The deadline: %llu\n", ((alarm_t)(iter->data))->deadline);
+
+
+  // While next alarm deadline has passed
+  while (iter && (iter->next != alarm_queue->head) && (((alarm_t)(iter->data))->deadline <= ((unsigned long long) clk_count) * clk_period)) {
+  	alarm = (alarm_t) iter->data;
+    if (alarm->executed != 1) {      //Only if we haven't yet processed this alarm
+      func = alarm->func;
+      argument = alarm->arg;
+      func(argument);
+      alarm->executed = 1;
+    }
+    iter = iter->next;   // Bump alarm pointer
+
+    /*OLD SHIT*/
+  	// deregister_alarm((alarm_id) alarm);
+    // iter = alarm_queue->head;
   }
+
+  // Process last alarm_queue element
+  if (iter && (((alarm_t)(iter->data))->deadline <= ((unsigned long long) clk_count) * clk_period)) {
+    alarm = (alarm_t) iter->data;
+    if (alarm->executed != 1) {      //Only if we haven't yet processed this alarm
+      func = alarm->func;
+      argument = alarm->arg;
+      func(argument);
+      alarm->executed = 1;
+    }
+  }
+
 
   // Track non-privileged process quanta
   if (current != globaltcb) {  // Applies only to non-OS threads
