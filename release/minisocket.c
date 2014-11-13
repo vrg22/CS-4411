@@ -372,15 +372,48 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
  */
 int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisocket_error *error) {
 	int packets_remaining = 1;
+	// network_interrupt_arg_t* packet = NULL;
+
+	// Check for valid arguments
+	if (socket == NULL) {
+		fprintf(stderr, "ERROR: minisocket_receive() passed NULL minisocket_t\n");
+		*error = SOCKET_INVALIDPARAMS;
+		// semaphore_V(skt_mutex);
+		return -1;
+	}
 
 	semaphore_P(socket->receiving); // Block until a message is received (looking for a SYN to establish connection)
 	// Must acknowledge each packet upon arrival (provide info about losses)
 	// Must keep track of packets it has already seen (handle duplicates)
 
-	semaphore_P(socket->datagrams_ready);
-
 	while (packets_remaining) {
-		// do stuff
+		semaphore_P(socket->datagrams_ready);
+		
+		/*// Obtain received message from miniport queue and extract header data
+		if (queue_dequeue(socket->incoming_data, (void**) &packet) < 0) {
+			fprintf(stderr, "ERROR: minisocket_receive() failed to dequeue message from minisocket queue\n");
+			semaphore_V(msgmutex);
+			return -1;
+		}
+
+		// Extract header stuff
+		buffer = packet->buffer;
+		// size = packet->size;
+		// *len = ((packet->size) - 20) / sizeof(char);
+		*len = sizeof(buffer[21]) / sizeof(char);
+		unpack_address(&buffer[1], remote_receive_addr);
+		remote_port = unpack_unsigned_short(&buffer[9]);
+		// msg = (minimsg_t) &buffer[21];
+		// *msg = *((minimsg_t) &buffer[21]);
+
+		while (buffer[21 + i]) {
+			msg[i] = buffer[21 + i];
+			i++;
+		}
+
+	 	//return number of bytes of payload actually received (drop stuff beyond max)
+
+	 	free(packet);*/
 	}
 
 	semaphore_V(socket->receiving);
