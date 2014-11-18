@@ -156,7 +156,7 @@ int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_
  *
  * Precondition: sema is initialized as a counting semaphore (0)
  */
-void wait_for_arrival_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout);
+int wait_for_arrival_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout);
 
 /* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
   (relies on network_handler to get said response). Return -1 on Failure, 0 if Timed out, 1 if Received packet. */

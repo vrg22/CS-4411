@@ -82,51 +82,23 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	socket->datagrams_ready = semaphore_create();
 	semaphore_initialize(socket->datagrams_ready, 0);
 	socket->sending = semaphore_create();
-	semaphore_initialize(socket->sending, 0);
+	semaphore_initialize(socket->sending, 1);
 	socket->receiving = semaphore_create();
-	semaphore_initialize(socket->receiving, 0);
+	semaphore_initialize(socket->receiving, 1);
 	socket->timeout = semaphore_create();
 	semaphore_initialize(socket->timeout, 0);
 	socket->wait_syn = semaphore_create();
 	semaphore_initialize(socket->wait_syn, 0);
 	socket->incoming_data = queue_new();
-	socket->seqnum = 1;
+	socket->seqnum = 0;
 	socket->acknum = 0;
 	socket->alarm = NULL;
 
 	sockets[port] = socket; // Add socket to socket ports array
 	used_server_ports++; // Increment server-ports-in-use counter
 
-	//Await SYN packet -> how much of this is done by network_handler???
-
 	semaphore_P(socket->wait_syn);
 	semaphore_initialize(socket->wait_syn, 0);
-
-	/*syn_done = 0;
-	while (!syn_done) {
-		// semaphore_V(skt_mutex);
-		semaphore_P(socket->datagrams_ready); // Block until a message is received (looking for a SYN to establish connection)
-		// semaphore_P(skt_mutex);
-
-		while (queue_dequeue(socket->incoming_data, (void**) &packet) >= 0 && !validate_packet(packet, MSG_SYN, 1, 0)) {
-			// SEND FIN
-		}
-
-		// Check for message_type = MSG_SYN; (seq, ack) = (1, 0)
-		if (packet && validate_packet(packet, MSG_SYN, 1, 0)) {
-			syn_done = 1;
-		}
-	}*/
-	
-	// Received MSG_SYN with (seq, ack) = (1, 0); extract header stuff, update socket info
-	/*socket->active = 1;
-	socket->acknum++;
-	buffer = packet->buffer; // Header and message data
-	unpack_address(&buffer[1], socket->dest_address);
-	socket->remote_port = unpack_unsigned_short(&buffer[9]);*/
-
-	// free(packet);
-
 
 	// Send SYNACK w/ 7 retries
 	// Allocate new header for SYNACK packet
@@ -137,6 +109,8 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 		// semaphore_V(skt_mutex);
 		return NULL;
 	}
+
+	socket->seqnum++;
 
 	// Assemble packet header
 	set_header(socket, hdr, MSG_SYNACK);
@@ -240,15 +214,15 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 	socket->datagrams_ready = semaphore_create();
 	semaphore_initialize(socket->datagrams_ready, 0);
 	socket->sending = semaphore_create();
-	semaphore_initialize(socket->sending, 0);
+	semaphore_initialize(socket->sending, 1);
 	socket->receiving = semaphore_create();
-	semaphore_initialize(socket->receiving, 0);
+	semaphore_initialize(socket->receiving, 1);
 	socket->timeout = semaphore_create();
 	semaphore_initialize(socket->timeout, 0);
 	socket->wait_syn = semaphore_create();
 	semaphore_initialize(socket->wait_syn, 0);
 	socket->incoming_data = queue_new();
-	socket->seqnum = 1;
+	socket->seqnum = 0;
 	socket->acknum = 0;
 	socket->alarm = NULL;
 
@@ -266,6 +240,8 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
 		// semaphore_V(skt_mutex);
 		return NULL;
 	}
+
+	socket->seqnum++;
 
 	// Assemble packet header
 	set_header(socket, hdr, MSG_SYN);
@@ -338,6 +314,7 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
 
 	// Fragment long messages into smaller packets
 	while (bytes_sent < len) {
+		socket->seqnum++;
 		send_len = ((len - bytes_sent) > MAX_NETWORK_PKT_SIZE) ? MAX_NETWORK_PKT_SIZE : (len - bytes_sent); // Length of data to send in this packet
 		set_header(socket, header, MSG_ACK);
 		result = retransmit_packet(socket, (char*) header, send_len, msg + bytes_sent, error);
@@ -371,8 +348,11 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
  *           bytes received otherwise
  */
 int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisocket_error *error) {
-	int packets_remaining = 1;
-	// network_interrupt_arg_t* packet = NULL;
+	// int packets_remaining = 1;
+	int bytes_received = 0;
+	network_interrupt_arg_t* packet = NULL;
+	char* buffer;
+	int i;
 
 	// Check for valid arguments
 	if (socket == NULL) {
@@ -383,42 +363,26 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
 	}
 
 	semaphore_P(socket->receiving); // Block until a message is received (looking for a SYN to establish connection)
-	// Must acknowledge each packet upon arrival (provide info about losses)
-	// Must keep track of packets it has already seen (handle duplicates)
 
-	while (packets_remaining) {
-		semaphore_P(socket->datagrams_ready);
-		
-		/*// Obtain received message from miniport queue and extract header data
-		if (queue_dequeue(socket->incoming_data, (void**) &packet) < 0) {
-			fprintf(stderr, "ERROR: minisocket_receive() failed to dequeue message from minisocket queue\n");
-			semaphore_V(msgmutex);
-			return -1;
-		}
-
-		// Extract header stuff
+	semaphore_P(socket->datagrams_ready);
+	
+	// Obtain received message from miniport queue and extract header data
+	while (bytes_received < max_len && queue_dequeue(socket->incoming_data, (void**) &packet) > 0) {
+		// Extract message data
 		buffer = packet->buffer;
-		// size = packet->size;
-		// *len = ((packet->size) - 20) / sizeof(char);
-		*len = sizeof(buffer[21]) / sizeof(char);
-		unpack_address(&buffer[1], remote_receive_addr);
-		remote_port = unpack_unsigned_short(&buffer[9]);
-		// msg = (minimsg_t) &buffer[21];
-		// *msg = *((minimsg_t) &buffer[21]);
-
-		while (buffer[21 + i]) {
-			msg[i] = buffer[21 + i];
+		i = 0;
+		while (buffer[21 + i] && bytes_received < max_len) {
+			msg[bytes_received] = buffer[21 + i];
 			i++;
+			bytes_received++;
 		}
-
-	 	//return number of bytes of payload actually received (drop stuff beyond max)
-
-	 	free(packet);*/
 	}
+
+ 	free(packet);
 
 	semaphore_V(socket->receiving);
 
-	return 0;
+	return bytes_received;
 }
 
 
@@ -443,20 +407,26 @@ int validate_packet(network_interrupt_arg_t* packet, char message_type, int seq_
 		return 0;
 }
 
-void wait_for_arrival_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout) {
+int wait_for_arrival_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout) {
 	if (sema == NULL) {
 		fprintf(stderr, "ERROR: wait_for_arrival_or_timeout() passed uninitialized semaphore\n");
-		return;
+		return -1;
 	}
 	*alarm = (alarm_t) register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
 	semaphore_P(sema);
-	deregister_alarm((alarm_id) (*alarm));
+	fprintf(stderr, "Woke up!\n");
+	if (*alarm != NULL){
+		return deregister_alarm((alarm_id) (*alarm));
+	}
+	else
+		return 0;
 }
 
 /* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
 	(relies on network_handler to get said response). Return -1 on Failure, 0 if Timed out, 1 if Received packet. */
 int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, minisocket_error *error) {
 	int send_attempts, timeout, received_next_packet;
+	int exec = 0;
 
 	send_attempts = 0;
 	timeout = INITIAL_TIMEOUT;
@@ -469,15 +439,16 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 			// semaphore_V(skt_mutex);
 			return -1; // Failure
 		}
-		fprintf(stderr, "DEBUG: Sent %i with (syn = %i, ack = %i) attempt %i\n", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
+		fprintf(stderr, "DEBUG: Sent %i with (seq = %i, ack = %i) attempt %i\n", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
 
 		// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
 		// CHECK: need to enforce mutual exclusion here?
-		wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);	//CHECK: Is this the CORRECT semaphore to block on?
+		exec = wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);	//CHECK: Is this the CORRECT semaphore to block on?
 
 		// Q: What if you receive the ACK right here after timing out? -> Is that even a case we SHOULD or CAN handle?
 
-		if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached without ACK
+		// if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached without ACK
+		if (exec) {
 			timeout *= 2;
 			send_attempts++;
 		} else { // ACK (or equivalent received)
