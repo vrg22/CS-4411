@@ -447,25 +447,25 @@ void network_handler(network_interrupt_arg_t* pkt) {
 		/*Handle Packet*/
 		if (network_compare_network_addresses(dest_addr, my_addr)) {  // This packet IS meant for me
 			if (sockets[dest_port] != NULL) { // Local socket exists
-				fprintf(stderr, "Local socket exists :) (%i, %i)\n", sockets[dest_port]->seqnum, sockets[dest_port]->acknum);
+				fprintf(stderr, "Local socket exists (%i, %i)\n", sockets[dest_port]->seqnum, sockets[dest_port]->acknum);
 				// Received packet has valid ACK and SEQ #s wrt my local ACK and SEQ #s
 				if ((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1)) {
-					// fprintf(stderr, "Here's this 'lil fucker :) %i\n", msg_type == MSG_ACK);
+					// fprintf(stderr, "Here's this 'lil fucker %i\n", msg_type == MSG_ACK);
 					// Take actions depending on packet type
 					if (msg_type == MSG_ACK) {
-						fprintf(stderr, "Got sum fucker :)\n");
+						fprintf(stderr, "Got an ACK of some sort\n");
 						// Consider cases of empty ACK vs. data ACK
 						if (pkt->size == sizeof(struct mini_header_reliable)) { // Empty ACK
 							if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) {
 								// semaphore_V(sockets[dest_port]->timeout);
 								semaphore_V(sockets[dest_port]->datagrams_ready);
-								fprintf(stderr, "Got empty ACK packet :)\n");
+								fprintf(stderr, "Got empty ACK packet\n");
 							}
 							deregister_alarm(sockets[dest_port]->alarm);
 							sockets[dest_port]->alarm = NULL;
 							// sockets[dest_port]->alarm->executed = 1;
 						} else { // Data ACK
-							fprintf(stderr, "Got data ACK packet :)\n");
+							fprintf(stderr, "Got data ACK packet\n");
 							if (seq_num == sockets[dest_port]->acknum + 1) { // First arrival of message
 								sockets[dest_port]->acknum++;
 
@@ -476,7 +476,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 								}
 								sockets[dest_port]->alarm->executed = 1;
 
-								fprintf(stderr, "Got data ACK packet :)\n");
+								fprintf(stderr, "Got data ACK packet\n");
 
 								queue_append(sockets[dest_port]->incoming_data, pkt);
 								semaphore_V(sockets[dest_port]->datagrams_ready);
@@ -493,10 +493,10 @@ void network_handler(network_interrupt_arg_t* pkt) {
 								fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
 								return;
 							}
-							fprintf(stderr, "Sent empty ACK packet :)\n");
+							fprintf(stderr, "Sent empty ACK packet\n");
 						}
 					} else if (msg_type == MSG_SYN) {
-						fprintf(stderr, "Got MSG_SYN packet :)\n");
+						fprintf(stderr, "Got MSG_SYN packet\n");
 						if (!sockets[dest_port]->active) { // Socket not previously in communication
 							sockets[dest_port]->acknum++;
 							sockets[dest_port]->active = 1;
@@ -517,14 +517,16 @@ void network_handler(network_interrupt_arg_t* pkt) {
 							}
 						}
 					} else if (msg_type == MSG_SYNACK) {
-						fprintf(stderr, "Got MSG_SYNACK packet :)\n");
+						fprintf(stderr, "Got MSG_SYNACK packet\n");
 						// Disable timeout alert
 						if (sockets[dest_port]->alarm != NULL && !sockets[dest_port]->alarm->executed) {
 							sockets[dest_port]->acknum++;
 							// semaphore_V(sockets[dest_port]->timeout);
 							semaphore_V(sockets[dest_port]->datagrams_ready);
 						}
-						sockets[dest_port]->alarm->executed = 1;
+						deregister_alarm(sockets[dest_port]->alarm);
+						sockets[dest_port]->alarm = NULL;
+						// sockets[dest_port]->alarm->executed = 1;
 
 						// Send an empty ACK back
 						hdr = malloc(sizeof(struct mini_header_reliable));	// Allocate new header for ACK packet
@@ -537,7 +539,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 							fprintf(stderr, "ERROR: network_handler() failed to use network_send_pkt()\n");
 							return;
 						}
-						fprintf(stderr, "Sent empty ACK packet :) (%i, %i)\n", sockets[dest_port]->seqnum, sockets[dest_port]->acknum);
+						fprintf(stderr, "Sent empty ACK packet (%i, %i)\n", sockets[dest_port]->seqnum, sockets[dest_port]->acknum);
 					} else if (msg_type == MSG_FIN) {
 						// THROW FATASS ERRORS
 					}

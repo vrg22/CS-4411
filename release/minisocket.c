@@ -414,12 +414,12 @@ int wait_for_arrival_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout) {
 	}
 	*alarm = (alarm_t) register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
 	semaphore_P(sema);
-	fprintf(stderr, "Woke up!\n");
-	if (*alarm != NULL){
+	// fprintf(stderr, "Woke up!\n");
+	if (*alarm != NULL) {
 		return deregister_alarm((alarm_id) (*alarm));
-	}
-	else
+	} else {
 		return 0;
+	}
 }
 
 /* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
@@ -445,8 +445,6 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 		// CHECK: need to enforce mutual exclusion here?
 		exec = wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);	//CHECK: Is this the CORRECT semaphore to block on?
 
-		// Q: What if you receive the ACK right here after timing out? -> Is that even a case we SHOULD or CAN handle?
-
 		// if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached without ACK
 		if (exec) {
 			timeout *= 2;
@@ -454,8 +452,6 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 		} else { // ACK (or equivalent received)
 			received_next_packet = 1;
 			socket->alarm = NULL;		// No active retransmission alarm
-
-			// socket->active = 1;		// CHECK: need this HERE if server? PROBABLY WRONG
 		}
 	}
 
