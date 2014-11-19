@@ -444,11 +444,14 @@ void network_handler(network_interrupt_arg_t* pkt) {
 		unpack_address(&buffer[11], dest_addr); // Ultimate packet destination
 		dest_port = unpack_unsigned_short(&buffer[19]); // Ultimate packet destination's port
 
+		fprintf(stderr, "Got somethin in net handler\n");
+
 		/*Handle Packet*/
 		if (network_compare_network_addresses(dest_addr, my_addr)) {  // This packet IS meant for me
 			if (sockets[dest_port] != NULL) { // Local socket exists
 				fprintf(stderr, "Local socket exists (%i, %i)\n", sockets[dest_port]->seqnum, sockets[dest_port]->acknum);
 				// Received packet has valid ACK and SEQ #s wrt my local ACK and SEQ #s
+				fprintf(stderr, "got something\n");
 				if ((ack_num == sockets[dest_port]->seqnum) && (seq_num <= sockets[dest_port]->acknum + 1)) {
 					// fprintf(stderr, "Here's this 'lil fucker %i\n", msg_type == MSG_ACK);
 					// Take actions depending on packet type
@@ -501,6 +504,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 							sockets[dest_port]->acknum++;
 							sockets[dest_port]->active = 1;
 							unpack_address(&buffer[1], sockets[dest_port]->dest_address);
+							//network_address_copy(src_addr, sockets[dest_port]->dest_address);
 							sockets[dest_port]->remote_port = unpack_unsigned_short(&buffer[9]);
 							semaphore_V(sockets[dest_port]->wait_syn);
 						} else { // Socket in use - send FIN

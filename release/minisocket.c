@@ -316,6 +316,7 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
 	while (bytes_sent < len) {
 		socket->seqnum++;
 		send_len = ((len - bytes_sent) > MAX_NETWORK_PKT_SIZE) ? MAX_NETWORK_PKT_SIZE : (len - bytes_sent); // Length of data to send in this packet
+		fprintf(stderr, "%i\n", send_len);
 		set_header(socket, header, MSG_ACK);
 		result = retransmit_packet(socket, (char*) header, send_len, msg + bytes_sent, error);
 
@@ -432,6 +433,8 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 	timeout = INITIAL_TIMEOUT;
 	received_next_packet = 0;
 
+	socket->alarm = NULL;
+
 	while (send_attempts < MAX_SEND_ATTEMPTS && !received_next_packet) {
 		if (network_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), hdr, data_len, data) < 0) {
 			fprintf(stderr, "ERROR: retransmit_packet() failed to successfully execute network_send_pkt()\n");
@@ -444,7 +447,7 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 		// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
 		// CHECK: need to enforce mutual exclusion here?
 		exec = wait_for_arrival_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);	//CHECK: Is this the CORRECT semaphore to block on?
-
+		fprintf(stderr, "executed: %i\n", exec);
 		// if (((alarm_t) socket->alarm)->executed) { // Timeout has been reached without ACK
 		if (exec) {
 			timeout *= 2;
