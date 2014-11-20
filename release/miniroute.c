@@ -10,7 +10,10 @@ void miniroute_initialize()
  * .h file.
  */
 int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, int data_len, char* data) {
-	//TODO
+	//
+	// 
+
+
 	return 0;
 }
 

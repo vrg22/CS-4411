@@ -13,6 +13,14 @@ enum routing_packet_type {
 #define SIZE_OF_ROUTE_CACHE 20
 
 
+// Local data structures
+// Cache (hashtable)
+// ? Sema?
+
+
+
+
+
 struct routing_header
 {
 	char routing_packet_type;		/* the type of routing packet */
