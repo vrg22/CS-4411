@@ -26,8 +26,6 @@ CFLAGS = -mno-red-zone -fno-omit-frame-pointer -g -O0 -I. \
 LFLAGS = -lrt -pthread -g
 
 OBJ =                              \
-	minimsg.o                      \
-	minisocket.o                   \
     minithread.o                   \
     interrupts.o                   \
     machineprimitives.o            \
@@ -37,7 +35,11 @@ OBJ =                              \
     alarm.o                        \
     queue.o                        \
     synch.o                        \
+    read.o                         \
     miniheader.o                   \
+    minimsg.o                      \
+    minisocket.o                   \
+    miniroute.o                    \
     multilevel_queue.o             \
     network.o
 
