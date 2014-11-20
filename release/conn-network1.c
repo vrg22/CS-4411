@@ -15,7 +15,7 @@
 #include <string.h>
 
 
-#define BUFFER_SIZE 100000
+#define BUFFER_SIZE 100 //100000
 
 int port=80; /* port on which we do the communication */
 
@@ -57,6 +57,11 @@ char* GetErrorDescription(int errorcode){
 }
 
 int transmit(int* arg) {
+	//DEBUG
+	char server_local_addr[20];
+	char server_remote_addr[20];
+	network_address_t my_address;
+
 	char buffer[BUFFER_SIZE];
 	int i;
 	int bytes_sent;
@@ -75,7 +80,16 @@ int transmit(int* arg) {
 	/* Fill in the buffer with numbers from 0 to BUFFER_SIZE-1 */
 	for (i=0; i<BUFFER_SIZE; i++){
 		buffer[i]=(char)(i%256);
+		// printf("Buffer char: %c\n", buffer[i]);
 	}
+		// fprintf(stderr, "Buffer: %s\n", buffer);
+
+	// DEBUG
+	network_get_my_address(my_address);
+	network_format_address(my_address, server_local_addr, 20);
+	network_format_address(socket->dest_address, server_remote_addr, 20);
+	printf("SERVER made! It's address: %s\t Remote: %s\n\n", server_local_addr, server_remote_addr);
+
 
 	/* send the message */
 	bytes_sent=0;
@@ -102,6 +116,11 @@ int transmit(int* arg) {
 }
 
 int receive(int* arg) {
+	//DEBUG
+	char server_local_addr[20];
+	char server_remote_addr[20];
+	// network_address_t my_address;
+
 	char buffer[BUFFER_SIZE];
 	int i;
 	int bytes_received;
@@ -125,6 +144,14 @@ int receive(int* arg) {
 		printf("ERROR: %s. Exiting. \n",GetErrorDescription(error));
 		return -1;
 	}
+
+
+	// DEBUG
+	// network_get_my_address(my_address);
+	network_format_address(my_address, server_local_addr, 20);
+	network_format_address(socket->dest_address, server_remote_addr, 20);
+	printf("CLIENT made! It's address: %s\t Remote: %s\n\n", server_local_addr, server_remote_addr);
+
 
 	/* receive the message */
 	bytes_received=0;

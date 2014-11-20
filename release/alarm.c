@@ -84,7 +84,7 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
     		not_added = 0;
     	}
     }
-
+    // printf("Alarm queue length: %i\n", queue_length(alarm_queue));
     return (alarm_id) new_alarm;
 }
 
@@ -102,6 +102,7 @@ int deregister_alarm(alarm_id alarm) {
     //     fprintf(stderr, "ERROR: deregister_alarm() failed to DEQUEUE alarm\n");
     // }
 
+    // printf("Alarm queue length: %i\n", queue_length(alarm_queue));
     return executed;
 }
 

@@ -98,7 +98,7 @@ minisocket_t minisocket_server_create(int port, minisocket_error *error) {
 	used_server_ports++; // Increment server-ports-in-use counter
 
 	semaphore_P(socket->wait_syn);
-	semaphore_initialize(socket->wait_syn, 0);
+	semaphore_initialize(socket->wait_syn, 0); // Handle case when count may be increased excessively due to extra packets coming in(?)
 
 	// Send SYNACK w/ 7 retries
 	// Allocate new header for SYNACK packet
@@ -284,8 +284,13 @@ minisocket_t minisocket_client_create(network_address_t addr, int port, minisock
  */
 int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_error *error) {
 	int result, send_len;
-	int bytes_sent = 0;
+	int bytes_sent;
 	mini_header_reliable_t header;
+
+	//DEBUG
+	// char* the_msg = (char*) msg;
+	// printf("msg: %s    length of msg to send: %i\n", msg, len);
+
 
 	// Check for valid arguments
 	if (socket == NULL) {
@@ -310,15 +315,17 @@ int minisocket_send(minisocket_t socket, minimsg_t msg, int len, minisocket_erro
 		return -1;
 	}
 
+	// Exclude other threads from sending from the same socket while I'm sending
 	semaphore_P(socket->sending);
 
+	bytes_sent = 0;
 	// Fragment long messages into smaller packets
 	while (bytes_sent < len) {
 		socket->seqnum++;
 		send_len = ((len - bytes_sent) > MAX_NETWORK_PKT_SIZE) ? MAX_NETWORK_PKT_SIZE : (len - bytes_sent); // Length of data to send in this packet
-		fprintf(stderr, "%i\n", send_len);
 		set_header(socket, header, MSG_ACK);
-		result = retransmit_packet(socket, (char*) header, send_len, msg + bytes_sent, error);
+		// printf("Message abt to be sent, length of it: (%s, %i)\n", the_msg[0](char*) msg, send_len);
+		result = retransmit_packet(socket, (char*) header, send_len, (/*(char*)*/ msg) + bytes_sent, error);
 
 		if (result == 1) { // ACK received (packet send successfully)
 			bytes_sent += send_len;
@@ -393,7 +400,7 @@ int minisocket_receive(minisocket_t socket, minimsg_t msg, int max_len, minisock
  * function.  The function should never fail.
  */
 void minisocket_close(minisocket_t socket) {
-	// TODO
+	printf("CLOSING NOT YET IMPLEMENTED!\n");
 }
 
 
@@ -433,6 +440,7 @@ int retransmit_packet(minisocket_t socket, char* hdr, int data_len, char* data, 
 	timeout = INITIAL_TIMEOUT;
 	received_next_packet = 0;
 
+	// "Reset" alarm field
 	socket->alarm = NULL;
 
 	while (send_attempts < MAX_SEND_ATTEMPTS && !received_next_packet) {
