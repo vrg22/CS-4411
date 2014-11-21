@@ -4,9 +4,9 @@
 #include "minimsg.h"
 
 enum routing_packet_type {
-  ROUTING_DATA=0,
-  ROUTING_ROUTE_DISCOVERY=1,
-  ROUTING_ROUTE_REPLY=2
+  ROUTING_DATA = 0,
+  ROUTING_ROUTE_DISCOVERY = 1,
+  ROUTING_ROUTE_REPLY = 2
 };
 
 #define MAX_ROUTE_LENGTH 20
@@ -18,11 +18,7 @@ enum routing_packet_type {
 // ? Sema?
 
 
-
-
-
-struct routing_header
-{
+struct routing_header {
 	char routing_packet_type;		/* the type of routing packet */
 	char destination[8];			/* ultimate destination of routing packet */
 	char id[4];						/* identifier value for this broadcast (only applicable for discovery and route reply msgs, 0 otherwise */
@@ -34,6 +30,8 @@ struct routing_header
 									   The address of the source is stored in the first position, and the
 									   address of the destination is stored in the last position. */
 };
+
+typedef struct routing_header* routing_header_t;
 
 /* Performs any initialization of the miniroute layer, if required. */
 void miniroute_initialize();
@@ -62,5 +60,10 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
  *
  */
 unsigned short hash_address(network_address_t address);
+
+/* Route discovery algorithm that calls network_bcast_pkt() to find the path to dest_address and stores this path in the path argument.
+ * Returns total path length if a valid path is found, 0 if no path is found, or -1 on error.
+ */
+int miniroute_discover_path(network_address_t dest_address, char* path);
 
 #endif /* _MINIROUTE_H_ */

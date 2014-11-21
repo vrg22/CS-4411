@@ -66,13 +66,9 @@ void network_udp_ports(short myportnum, short otherportnum);
  * network_send_pkt returns the number of bytes sent if it was able to
  * successfully send the data.  Returns -1 otherwise.
  */
-int
-network_send_pkt(network_address_t dest_address,
-                 int hdr_len, char * hdr,
-                 int  data_len, char * data);
+int network_send_pkt(network_address_t dest_address, int hdr_len, char * hdr, int  data_len, char * data);
 
-int
-network_bcast_pkt(int hdr_len, char* hdr, int data_len, char* data);
+int network_bcast_pkt(int hdr_len, char* hdr, int data_len, char* data);
 
 
 /*******************************************************************************
@@ -96,8 +92,7 @@ int network_translate_hostname(char* hostname, network_address_t address);
  * Compares network addresses. Returns 0 if different and
  * nonzero if identical.
  */
-int network_compare_network_addresses(network_address_t addr1,
-                                      network_address_t addr2);
+int network_compare_network_addresses(network_address_t addr1, network_address_t addr2);
 
 /*
  * write the network address in a human-readable way, into a buffer of length
@@ -114,11 +109,8 @@ void network_address_blankify(network_address_t addr);
 void network_address_copy(network_address_t original, network_address_t copy);
 
 /* for modifying the broadcast adjacency matrix. */
-void
-network_add_bcast_link(char* src, char* dest);
+void network_add_bcast_link(char* src, char* dest);
 
-void
-network_remove_bcast_link(char* src, char* dest);
+void network_remove_bcast_link(char* src, char* dest);
 
 #endif /*__NETWORK_H_*/
-
