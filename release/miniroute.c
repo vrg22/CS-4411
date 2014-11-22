@@ -115,14 +115,14 @@ int wait_for_discovery_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout)
 		fprintf(stderr, "ERROR: wait_for_discovery_or_timeout() passed uninitialized semaphore\n");
 		return -1;
 	}
+
 	*alarm = (alarm_t) register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
 	semaphore_P(sema);
 	if (alarm->executed /* *alarm != NULL*/) {
-		return deregister_alarm((alarm_id) (*alarm));
-		printf("Didn't discover packet\n");
+		return alarmstatus;
+		fprintf(stderr, "Didn't discover packet\n");
 	} else {
-		deregister_alarm((alarm_id) (*alarm));
-		printf("Discovered packet!\n");
+		fprintf(stderr, "Discovered packet!\n");
 		return 0;
 	}
 }
@@ -161,6 +161,11 @@ int miniroute_discover_path(network_address_t dest_address  /*, char* path*/) {
 	if (dest_elem == NULL){
 		//create element
 		dest_elem = cache_table_insert(cache, dest_address, dest_sema, dest_alarm, NULL);	//don't specify path here, leave NULL
+		if (dest_elem == NULL) {
+			fprintf(stderr, "ERROR: miniroute_discover_path() failed to insert new cache element\n");
+			semaphore_V(cache_mutex);
+			return -1;
+		}
 	}
 	semaphore_V(cache_mutex);
 
@@ -180,9 +185,9 @@ int miniroute_discover_path(network_address_t dest_address  /*, char* path*/) {
 		// Build routing_hdr with updated fields
 		routing_hdr->routing_packet_type = ROUTING_ROUTE_DISCOVERY;
 		pack_address(routing_hdr->destination, dest_address);
-		pack_unsigned_int(routing_hdr->id, SOMETHING);
-		pack_unsigned_int(routing_hdr->ttl, SOMETHING);
-		pack_unsigned_int(routing_hdr->path_len, SOMETHING);
+		pack_unsigned_int(routing_hdr->id, SOMETHING); //                  FILL IN HERE
+		pack_unsigned_int(routing_hdr->ttl, SOMETHING); //                  FILL IN HERE
+		pack_unsigned_int(routing_hdr->path_len, SOMETHING); //                  FILL IN HERE
 		for (i = 0; i < MAX_ROUTE_LENGTH; i++) {
 			pack_address(routing_hdr->path[i], path[i]);
 		}
@@ -190,12 +195,11 @@ int miniroute_discover_path(network_address_t dest_address  /*, char* path*/) {
 		while (send_attempts < MAX_SEND_ATTEMPTS && !received_next_packet) {
 			if (network_bcast_pkt(sizeof(struct routing_header), routing_hdr, 0, NULL) < 0) {
 				fprintf(stderr, "ERROR: miniroute_discover_path() failed to successfully execute network_bcast_pkt()\n");
-				// *error = SOCKET_SENDERROR;
+				semaphore_V(dest_elem->mutex);
 				return -1; // Failure
 			}
 
 			// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
-			// CHECK: need to enforce mutual exclusion here?
 			exec = wait_for_discovery_or_timeout(dest_elem->timeout, dest_elem->reply, timeout);
 			// fprintf(stderr, "executed: %i\n", exec);
 
