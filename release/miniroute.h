@@ -12,10 +12,15 @@ enum routing_packet_type {
 #define MAX_ROUTE_LENGTH 20
 #define SIZE_OF_ROUTE_CACHE 20
 
+#define MAX_DISC_ATTEMPTS 3
+#define DISCOVERY_TIMEOUT 12000 // Initial timeout time in [ms]
 
-// Local data structures
-// Cache (hashtable)
-// ? Sema?
+#define MAX_DISC_ID 100000 // CHECK
+
+
+// Miniroute Data structures (extern)
+// cache, sema, id thing, etc.
+extern semaphore_t cache_mutex;
 
 
 struct routing_header {
@@ -64,6 +69,6 @@ unsigned short hash_address(network_address_t address);
 /* Route discovery algorithm that calls network_bcast_pkt() to find the path to dest_address and stores this path in the path argument.
  * Returns total path length if a valid path is found, 0 if no path is found, or -1 on error.
  */
-int miniroute_discover_path(network_address_t dest_address, char* path);
+int miniroute_discover_path(network_address_t dest_address /*, char* path*/);
 
 #endif /* _MINIROUTE_H_ */

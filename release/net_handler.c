@@ -29,10 +29,37 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
 	if (routing_packet_type == ROUTING_DATA) {
 		// DATA
+
+
 	} else if (routing_packet_type == ROUTING_ROUTE_DISCOVERY) {
 		// ROUTE DISCOVERY
+
+		// If I AM the destination
+			// Send appropriate route reply (after reversing path), same ID, setting destination
+
+		// Else 
+			// I should add my address to this packet's path, increment pathlen
+			// decrease ttl by 1
+				//If ttl not 0
+					// If I havent seen this same discovery guy recently (how to define recently?), AKA same id and from same src machine (first thing in path field)
+						// broadcast it onwards
+
+
 	} else if (routing_packet_type == ROUTING_ROUTE_REPLY) {
 		// ROUTE REPLY
+
+		// If I AM the dest of reply
+			// Check the cache for existence of the element (should be there)
+			// Check path is set, if so do nothing, else update:
+				// Reverse the result to get desired path
+				// Put result in some queue for thread asking for route discovery to consume
+				// Unblock that thread by Ving on some semaphore
+
+		// decrease ttl by 1
+			// If ttl not 0
+				// If I havent seen this same reply guy recently (how to define recently?), AKA same id and from same src machine (first thing in path field)
+					// (uni)cast it onwards, through the intermediate nodes
+
 	} else {
 		fprintf(stderr, "ERROR: network_handler() received packet with invalid routing_packet_type\n");
 	}

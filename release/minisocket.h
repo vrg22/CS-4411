@@ -69,7 +69,7 @@ enum minisocket_error {
 };
 
 extern minisocket_t* sockets; // Array of minisockets with each element representing a port
-extern semaphore_t skt_mutex; // Mutual exclusion semaphore
+// extern semaphore_t skt_mutex; // Mutual exclusion semaphore
 
 
 /* Initializes the minisocket layer. */
