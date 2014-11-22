@@ -19,7 +19,6 @@ cache_table_t cache_table_new() {
 cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, char* path) {
 	cache_elem_t entry;
     int index, i;
-    unsigned int hashcode;
 
 	entry = malloc(sizeof(struct cache_elem));
 	if (entry == NULL) { // malloc() failed
@@ -36,8 +35,7 @@ cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, cha
     entry->expire = NULL;
     entry->reply = NULL;
 
-    hashcode = hash_address(entry->dest);
-    index = hashcode % table->size;
+    index = hash_address(entry->dest) % table->size;
 
     i = 0;
     while (table[(index + i) % table->size] != NULL && i < table->size) {
@@ -49,6 +47,8 @@ cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, cha
     return entry;
 }
 
-cache_elem_t cache_table_get(network_address_t dest) {
+cache_elem_t cache_table_get(cache_table_t table, network_address_t dest) {
     
 }
+
+cache_

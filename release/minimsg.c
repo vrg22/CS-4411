@@ -167,7 +167,7 @@ void miniport_destroy(miniport_t miniport) {
  * system, it needs to know the sender's listening port (specified by local_unbound_port).
  * The msg parameter is a pointer to a data payload that the user wishes to send and does not
  * include a network header; your implementation of minimsg_send must construct the header
- * before calling network_send_pkt(). The return value of this function is the number of
+ * before calling miniroute_send_pkt(). The return value of this function is the number of
  * data payload bytes sent not inclusive of the header.
  */
 int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, minimsg_t msg, int len) {
@@ -205,9 +205,9 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	pack_address(hdr->destination_address, dest); // Destination address
 	pack_unsigned_short(hdr->destination_port, local_bound_port->u.bound.remote_unbound_port); // Destination port
 
-	// Call network_send_pkt() from network.hdr
-	if (network_send_pkt(dest, sizeof(struct mini_header), (char*) hdr, len, msg) < 0) {
-		fprintf(stderr, "ERROR: minimsg_send() failed to successfully execute network_send_pkt()\n");
+	// Call miniroute_send_pkt() from network.hdr
+	if (miniroute_send_pkt(dest, sizeof(struct mini_header), (char*) hdr, len, msg) < 0) {
+		fprintf(stderr, "ERROR: minimsg_send() failed to successfully execute miniroute_send_pkt()\n");
 		semaphore_V(msgmutex);
 		return -1;
 	}

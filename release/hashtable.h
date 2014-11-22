@@ -20,4 +20,6 @@ extern cache_table_t cache_table_new();
 
 extern int cache_table_insert(cache_table_t table, network_address_t dest, char* path);
 
-extern cache_elem_t cache_table_get(network_address_t dest);
+extern cache_elem_t cache_table_get(cache_table_t table, network_address_t dest);
+
+extern int cache_table_remove(cache_table_t table, network_address_t dest);
