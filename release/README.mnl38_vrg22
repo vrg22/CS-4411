@@ -3,5 +3,5 @@ Vivek Gaddam (vrg22)
 
 Notes:
 - id verification for route discovery and reply packets
-- 
 - Instant messaging app is not complete
+- There may be more unfound errors, but the infrastructure for the routing layer should be complete (except id verification)
