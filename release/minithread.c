@@ -16,6 +16,7 @@
 #include "miniheader.h"
 #include "minimsg.h"
 #include "minisocket.h"
+#include "read_private.h"
 
 
 /*
@@ -166,23 +167,10 @@ void clock_handler(void* arg) {
 
   clk_count++; // Increment clock count
 
-  // Debug statements to check if clock_handler() is working
-  // if (clk_count % 10 != 0 && clk_count % 1 == 0) fprintf(stderr, "Tick\n");
-  // if (clk_count % 10 == 0) fprintf(stderr, "TOCK\n");
-
   if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
 	 alarm_queue = queue_new();
   }
   iter = alarm_queue->head;
-  
-  // if (iter == NULL){
-  //   fprintf(stderr, "Iter is NULL\n");
-  // }
-  // else if (iter->data == NULL){
-  //   fprintf(stderr, "Iter->data is NULL\n");
-  // }
-  // fprintf(stderr, "The deadline: %llu\n", ((alarm_t)(iter->data))->deadline);
-
 
   // While next alarm deadline has passed
   while (iter && (iter->next != alarm_queue->head) && (((alarm_t)(iter->data))->deadline <= ((unsigned long long) clk_count) * clk_period)) {
@@ -194,10 +182,6 @@ void clock_handler(void* arg) {
 	  alarm->executed = 1;
 	}
 	iter = iter->next;   // Bump alarm pointer
-
-	/*OLD SHIT*/
-	// deregister_alarm((alarm_id) alarm);
-	// iter = alarm_queue->head;
   }
 
   // Process last alarm_queue element
@@ -277,6 +261,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
   network_initialize((network_handler_t) &network_handler);
   minimsg_initialize();
   minisocket_initialize();
+  miniroute_initialize();
+  miniterm_initialize();
 
   set_interrupt_level(ENABLED);
 
@@ -351,10 +337,6 @@ void minithread_next(minithread_t self) {
 * Thread finishing function (used as finalproc when thread terminates)
 */
 int minithread_exit(arg_t arg) {
-  // minithread_t tcb_old;
-
-  // tcb_old = current;
-
   // Need to disable to modify zombie queue while changing "current"
   set_interrupt_level(DISABLED);
 
@@ -426,14 +408,13 @@ void network_handler(network_interrupt_arg_t* pkt) {
 	buffer = &buffer[21 + 8*MAX_ROUTE_LENGTH]; // Bump to start of payload
 
 	if (routing_packet_type == ROUTING_DATA) {
-		if (network_compare_network_addresses(destination, my_addr)) {
+		if (network_compare_network_addresses(destination, my_addr)) { // I am final destination
 			// Basic packet parameters
 			subbuffer = &buffer[sizeof(struct routing_header)];
 			// length = pkt->size;   //Header size + Data size
 
 			// Extract req'd info from packet header
 			protocol = subbuffer[0];
-
 
 			//Handle as a UDP datagram
 			if (protocol == PROTOCOL_MINIDATAGRAM) {
@@ -452,10 +433,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 						fprintf(stderr, "Network handler: dest port doesn't exist. Dropping packet\n");
 				} else
 					fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
-			} 
-
-			//Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
-			else {
+			} else { //Handle as TCP-reliable datagram (protocol == PROTOCOL_MINISTREAM)
 				//Unpack relevant fields
 				unpack_address(&subbuffer[1], src_addr); // Packet's original source address
 				// src_port = unpack_unsigned_short(&subbuffer[9]); // Packet's original source port
@@ -577,7 +555,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 				} else
 				   fprintf(stderr, "Network handler: address not for me. Dropping packet\n");
 			}
-		} else {
+		} else { // Forward packet on to next hop
 			ttl--;
 			if (ttl > 0 && MAX_ROUTE_LENGTH - ttl + 1 < path_len) {
 				unpack_address(path[MAX_ROUTE_LENGTH - ttl + 1], next_hop);
@@ -641,7 +619,6 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
 			// Unicast send to reply dest
 			network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, 0, NULL); // No relevant data
-
 		} else { // Discovery packet needs to be rebroadcast
 			ttl--;
 			if (ttl > 0) {
@@ -700,6 +677,9 @@ void network_handler(network_interrupt_arg_t* pkt) {
 					}
 					dest_elem->path_len = path_len; // Update path length
 
+					// Create cache entry expiration alarm
+					dest_elem->expire = register_alarm(3000, (alarm_handler_t) remove_cache_entry, (void*) dest_elem);
+
 					semaphore_V(dest_elem->timeout);
 				}
 			} else {
@@ -741,4 +721,15 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
 	// Restore old interrupt level
 	set_interrupt_level(old_level);
+}
+
+void remove_cache_entry(cache_elem_t entry) {
+	int result;
+
+	deregister_alarm(entry->expire);
+	result = cache_table_remove(cache, entry->dest);
+
+	if (result < 0) {
+		fprintf(stderr, "ERROR: remove_cache_entry() couldn't remove cache table entry\n");
+	}
 }

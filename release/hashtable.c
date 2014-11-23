@@ -47,5 +47,48 @@ cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, cha
 }
 
 cache_elem_t cache_table_get(cache_table_t table, network_address_t dest) {
-    return NULL;    
+    cache_elem_t entry;
+    int index, i, notfound;
+
+    index = hash_address(dest) % table->size;
+
+    notfound = 1;
+    i = 0;
+    while (i < table->size && notfound) {
+        if (table->table[(index + i) % table->size] != NULL && network_compare_network_addresses(table->table[(index + i) % table->size]->dest, dest)) {
+            entry = table->table[(index + i) % table->size];
+            notfound = 0;
+        } else {
+            i++;
+        }
+    }
+
+    if (notfound) {
+        return NULL;
+    } else {
+        return entry;
+    }
+}
+
+int cache_table_remove(cache_table_t table, network_address_t dest) {
+    int index, i, notfound;
+
+    index = hash_address(dest) % table->size;
+
+    notfound = 1;
+    i = 0;
+    while (i < table->size && notfound) {
+        if (table->table[(index + i) % table->size] != NULL && network_compare_network_addresses(table->table[(index + i) % table->size]->dest, dest)) {
+            table->table[(index + i) % table->size] = NULL;
+            notfound = 0;
+        } else {
+            i++;
+        }
+    }
+
+    if (notfound) {
+        return -1;
+    } else {
+        return 0;
+    }
 }

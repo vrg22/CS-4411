@@ -145,4 +145,6 @@ extern void minithread_deallocate_func(void* null_arg, void* thread);
 /*  */
 extern void network_handler(network_interrupt_arg_t* pkt);
 
+extern void remove_cache_entry(cache_elem_t entry);
+
 #endif /*__MINITHREAD_H__*/

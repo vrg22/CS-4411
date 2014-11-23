@@ -29,6 +29,8 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 	// int hdr_full_len;
 	cache_elem_t dest_elem;
 	char payload[hdr_len + data_len];
+	int result;
+	char address[20];
 
 	// Allocate new header for packet
 	routing_hdr = malloc(sizeof(struct routing_header));
@@ -41,8 +43,8 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 	dest_elem = cache_table_get(cache, dest_address);
 	semaphore_V(cache_mutex);
 
-
 	if (dest_elem == NULL) { // Need to Discover path
+		fprintf(stderr, "Discovering path...\n");
 		pathfound = miniroute_discover_path(dest_address); // Run path discovery algorithm -> 
 		if (pathfound <= 0) {
 			fprintf(stderr, "Unable to locate path to specified destination\n");
@@ -83,7 +85,16 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 	// Assign first address in path as the next hop destination
 	unpack_address(&routing_hdr->path[1][0], next_hop);
 
-	return network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, data_len + hdr_len, payload);
+	network_format_address(next_hop, address, 20);
+	fprintf(stderr, "Address: %s\n", address);
+
+	result = network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, data_len + hdr_len, payload);
+
+	if (result < 0) {
+		fprintf(stderr, "ERROR: miniroute_send_pkt() failed when calling network_send_pkt()\n");
+	}
+
+	return result;
 }
 
 

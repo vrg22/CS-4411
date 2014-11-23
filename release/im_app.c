@@ -1,4 +1,4 @@
-/* 
+/*
 IM app
 */
 
@@ -7,7 +7,7 @@ IM app
 #include "minimsg.h"
 #include "synch.h"
 
-#include "read.c"
+#include "read.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -53,7 +53,6 @@ int transmit(int* arg) {
 
     minithread_fork(receive, NULL);
 
-    // for (i=0; i<MAX_COUNT; i++) {
     while (1) {
         printf("Sending instant message:\n");
         
@@ -61,10 +60,14 @@ int transmit(int* arg) {
         // length = strlen(buffer) + 1;
         length = miniterm_read(buffer, 100);
         minimsg_send(transmit_reply_port, write_port, buffer, length);
-    // }
     }
 
     return 0;
+}
+
+
+void run(int* arg) {
+    return;
 }
 
 
@@ -72,6 +75,6 @@ int main(int argc, char** argv) {
     short fromport;
     fromport = atoi(argv[1]);
     network_udp_ports(fromport,fromport);
-    minithread_system_initialize(receive, NULL);
+    minithread_system_initialize(transmit, NULL);
     return -1;
 }
