@@ -2,6 +2,7 @@
 #define _MINIROUTE_H_
 
 #include "minimsg.h"
+#include "hashtable.h"
 
 enum routing_packet_type {
   ROUTING_DATA = 0,
@@ -19,8 +20,9 @@ enum routing_packet_type {
 
 
 // Miniroute Data structures (extern)
-// cache, sema, id thing, etc.
+extern cache_table_t cache;
 extern semaphore_t cache_mutex;
+extern unsigned int id;
 
 
 struct routing_header {

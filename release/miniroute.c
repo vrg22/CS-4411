@@ -2,11 +2,9 @@
 
 
 // Miniroute data structures
-// Cache (hashtable)
+cache_table_t cache;
 semaphore_t cache_mutex = NULL;
-int id = 0; // id for Route Discovery and Route Reply packets // How many to allow? Unsigned?
-
-
+unsigned int id = 0; // id for Route Discovery and Route Reply packets // How many to allow? Unsigned?
 
 
 /* Performs any initialization of the miniroute layer, if required. */
@@ -16,8 +14,7 @@ void miniroute_initialize() {
     semaphore_initialize(cache_mutex, 1);
 
     // Init Cache
-
-    // Init queue of routing reply packets?
+    cache = cache_table_new();
 }
 
 /* sends a miniroute packet, automatically discovering the path if necessary. See description in the
@@ -26,11 +23,11 @@ void miniroute_initialize() {
 int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, int data_len, char* data) {
 	network_address_t next_hop;
 	routing_header_t routing_hdr; // Routing layer header
-	char* hdr_full[sizeof(struct routing_header) + hdr_len]; // routing_hdr followed by hdr
-	char path[MAX_ROUTE_LENGTH][8]; // Path to dest_address
-	int hdr_full_len, i;
-
-	hdr_full_len = sizeof(struct routing_header) + hdr_len;
+	//char* hdr_full[sizeof(struct routing_header) + hdr_len]; // routing_hdr followed by hdr
+	int path_len, pathfound, i, j;
+	// int hdr_full_len;
+	cache_elem_t dest_elem;
+	char payload[hdr_len + data_len];
 
 	// Allocate new header for packet
 	routing_hdr = malloc(sizeof(struct routing_header));
@@ -40,50 +37,52 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 	}
 
 	semaphore_P(cache_mutex);
-	// Consult cache (assume some other thread cleans up old entries in the cache)
-	// get_cache(dest_address)
-
-	// If not in cache, create cache element so you can block on that particular thing
-
-	// Have result -> either in cache (assume valid if so), or not
+	dest_elem = cache_table_get(cache, dest_address);
 	semaphore_V(cache_mutex);
 
 
-	if (dest_address not in cache) { // Need to Discover path
-
-		pathfound = miniroute_discover_path(dest_address, path); // Run path discovery algorithm -> 
+	if (dest_elem == NULL) { // Need to Discover path
+		pathfound = miniroute_discover_path(dest_address); // Run path discovery algorithm -> 
 		if (pathfound <= 0) {
 			fprintf(stderr, "Unable to locate path to specified destination\n");
 			return -1;
 		}
 
-	}	
-	// path = pathfound//(elem lookup from hashtable)->path;
-
-
+		semaphore_P(cache_mutex);
+		dest_elem = cache_table_get(cache, dest_address);
+		semaphore_V(cache_mutex);
+	} else if (dest_elem->path == NULL) {
+		fprintf(stderr, "ERROR: miniroute_send_pkt() found non-null cache entry with null path\n");
+		return -1;
+	}
 
 	// Build routing_hdr with updated fields
 	routing_hdr->routing_packet_type = ROUTING_DATA;
 	pack_address(routing_hdr->destination, dest_address);
-	pack_unsigned_int(routing_hdr->id, SOMETHING);
-	pack_unsigned_int(routing_hdr->ttl, SOMETHING);
-	pack_unsigned_int(routing_hdr->path_len, SOMETHING);
-	for (i = 0; i < MAX_ROUTE_LENGTH; i++) {
+	pack_unsigned_int(routing_hdr->ttl, MAX_ROUTE_LENGTH);
+	pack_unsigned_int(routing_hdr->path_len, path_len);
+	/*for (i = 0; i < MAX_ROUTE_LENGTH; i++) {
 		pack_address(routing_hdr->path[i], path[i]);
-	}
-
-	// Build hdr_full by appending hdr after routing_hdr
-	for (i = 0; i < hdr_full_len; i++) {
-		if (i < sizeof(struct routing_header)) { // Copy from routing layer header
-			hdr_full[i] = ((char*) routing_hdr)[i];
-		} else { // Copy from transport layer header
-			hdr_full[i] = hdr[i - sizeof(struct routing_header)];
+	}*/
+	for (i = 0; i < MAX_ROUTE_LENGTH; i++) {
+		for (j = 0; j < 8; j++) {
+			routing_hdr->path[i][j] = dest_elem->path[i][j];
 		}
 	}
 
-	unpack_address(path[0], next_hop); // Assign first address in path as the next hop destination
+	// Build payload
+	for (i = 0; i < hdr_len + data_len; i++) {
+		if (i < hdr_len) {
+			payload[i] = hdr[i];
+		} else { // Copy data
+			payload[i] = data[i - hdr_len];
+		}
+	}
 
-	return network_send_pkt(next_hop, hdr_full_len, hdr_full, data_len, data);
+	// Assign first address in path as the next hop destination
+	unpack_address(&routing_hdr->path[1][0], next_hop);
+
+	return network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, data_len + hdr_len, payload);
 }
 
 
@@ -117,43 +116,47 @@ int wait_for_discovery_or_timeout(semaphore_t sema, alarm_t* alarm, int timeout)
 	}
 
 	*alarm = (alarm_t) register_alarm(timeout, (alarm_handler_t) semaphore_V, (void*) sema);
+	
 	semaphore_P(sema);
-	if (alarm->executed /* *alarm != NULL*/) {
-		return alarmstatus;
-		fprintf(stderr, "Didn't discover packet\n");
-	} else {
-		fprintf(stderr, "Discovered packet!\n");
+
+	if (*alarm == NULL) {
 		return 0;
+	} else {
+		if ((*alarm)->executed) {
+			if (deregister_alarm(*alarm)) {
+				*alarm = NULL;
+				return 1;
+			} else {
+				fprintf(stderr, "ERROR: wait_for_discovery_or_timeout() woke up with conflicting executed statuses\n");
+				return -1;
+			}
+		} else {
+			fprintf(stderr, "ERROR: wait_for_discovery_or_timeout() woke up with not executed non-null alarm\n");
+			return -1;
+		}
 	}
 }
 
 
-	// if discovery needs to be initiated, the thread calling miniroute_send_pkt() should be blocked until the new route is discovered 
-	// or the discovery is retried three times and times out in all three cases.
-
- 	// -> broadcast and block
-		// When are you unblocked? When (in nethandler) you receive a route discovery packet AND update path to state
-
 /* Route discovery algorithm that calls network_bcast_pkt() to find the path to dest_address and stores this path in the path argument.
  * Similar to minisocket.c implementation of packet retransmission.
- * Returns total path length if a valid path is found, 0 if no path is found, or -1 on error.
+ * Returns 1 if a valid path is found, 0 if no path is found, or -1 on error.
  */
-int miniroute_discover_path(network_address_t dest_address  /*, char* path*/) {
+int miniroute_discover_path(network_address_t dest_address) {
 	int send_attempts, timeout, received_next_packet;
-	char* path = NULL;
+	network_address_t myaddr;
 	cache_elem_t dest_elem = NULL;
 	semaphore_t dest_sema = NULL;
 	alarm_t dest_alarm = NULL; // Issue here is that we have no local data structure that encapsulates a single alarm -> so we can't in net_handler just
 							// decide to deregister something, UNLESS we make it visible there. Instead, we can have the first thing we do after waking up from
 							// discovery_blocking be to check whether alarm exec'd or not 
-	int exec = 0;
+	int status = 0;
 	int found = 0;
-
 
 	send_attempts = 0;
 	timeout = DISCOVERY_TIMEOUT;
 	received_next_packet = 0;
-
+	network_get_my_address(myaddr);
 	
 	semaphore_P(cache_mutex);
 	// Quick lookup in cache
@@ -168,7 +171,6 @@ int miniroute_discover_path(network_address_t dest_address  /*, char* path*/) {
 		}
 	}
 	semaphore_V(cache_mutex);
-
 
 	
 	semaphore_P(dest_elem->mutex);
@@ -186,11 +188,9 @@ int miniroute_discover_path(network_address_t dest_address  /*, char* path*/) {
 		routing_hdr->routing_packet_type = ROUTING_ROUTE_DISCOVERY;
 		pack_address(routing_hdr->destination, dest_address);
 		pack_unsigned_int(routing_hdr->id, SOMETHING); //                  FILL IN HERE
-		pack_unsigned_int(routing_hdr->ttl, SOMETHING); //                  FILL IN HERE
-		pack_unsigned_int(routing_hdr->path_len, SOMETHING); //                  FILL IN HERE
-		for (i = 0; i < MAX_ROUTE_LENGTH; i++) {
-			pack_address(routing_hdr->path[i], path[i]);
-		}
+		pack_unsigned_int(routing_hdr->ttl, MAX_ROUTE_LENGTH);
+		pack_unsigned_int(routing_hdr->path_len, 1);
+		pack_address(routing_hdr->path[0], myaddr);
 
 		while (send_attempts < MAX_SEND_ATTEMPTS && !received_next_packet) {
 			if (network_bcast_pkt(sizeof(struct routing_header), routing_hdr, 0, NULL) < 0) {
@@ -200,61 +200,21 @@ int miniroute_discover_path(network_address_t dest_address  /*, char* path*/) {
 			}
 
 			// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
-			exec = wait_for_discovery_or_timeout(dest_elem->timeout, dest_elem->reply, timeout);
-			// fprintf(stderr, "executed: %i\n", exec);
+			status = wait_for_discovery_or_timeout(dest_elem->timeout, &(dest_elem->reply), timeout);
 
-			if (exec) {
+			if (status == -1) { // Error
+				return -1;
+			} else if (status == 1) { // Timed out
 				send_attempts++;
-			} else { // Valid discovery reply packet received
+			} else if (status == 0) { // Received reply packet
 				received_next_packet = 1;
-				dest_elem->reply = NULL;		// No active retransmission alarm
 			}
 		}
-
+	} else {
+		received_next_packet = 1; // path already defined
 	}
 		
 	semaphore_V(dest_elem->mutex);
 	
 	return received_next_packet;
-
 }
-
-
-
-// /* Used when we want to retransmit a given packet a certain number of times while a desired response has not been received 
-// 	(relies on network_handler to get said response). Return -1 on Failure, 0 if Timed out, 1 if Received packet. */
-// int retransmit_packet(semaphore_t sema, char* hdr, int data_len, char* data, minisocket_error *error) {
-// 	int send_attempts, timeout, received_next_packet;
-// 	int exec = 0;
-
-// 	send_attempts = 0;
-// 	timeout = DISCOVERY_TIMEOUT;
-// 	received_next_packet = 0;
-
-// 	// // "Reset" alarm field
-// 	// socket->alarm = NULL;
-
-// 	while (send_attempts < MAX_DISC_ATTEMPTS && !received_next_packet) {
-// 		if (miniroute_send_pkt(socket->dest_address, sizeof(struct mini_header_reliable), hdr, data_len, data) < 0) {
-// 			fprintf(stderr, "ERROR: retransmit_packet() failed to successfully execute network_send_pkt()\n");
-// 			// *error = SOCKET_SENDERROR;
-// 			return -1; // Failure
-// 		}
-// 		fprintf(stderr, "DEBUG: Sent %i with (seq = %i, ack = %i) attempt %i\n", ((mini_header_reliable_t) hdr)->message_type, unpack_unsigned_int(((mini_header_reliable_t) hdr)->seq_number), unpack_unsigned_int(((mini_header_reliable_t) hdr)->ack_number), send_attempts + 1);
-
-// 		// Block here until timeout expires (and alarm is thus deregistered) or packet is received, deregistering the pending alarm		
-// 		// CHECK: need to enforce mutual exclusion here?
-// 		exec = wait_for_discovery_or_timeout(socket->datagrams_ready, &(socket->alarm), timeout);	//CHECK: Is this the CORRECT semaphore to block on?
-// 		fprintf(stderr, "executed: %i\n", exec);
-
-// 		if (exec) {
-// 			send_attempts++;
-// 		} else { // Valid discovery reply packet received
-// 			received_next_packet = 1;
-
-// 			// socket->alarm = NULL;		// No active retransmission alarm
-// 		}
-// 	}
-
-// 	return received_next_packet;
-// }

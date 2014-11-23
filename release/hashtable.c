@@ -1,5 +1,4 @@
-#include "hashtable.c"
-
+#include "hashtable.h"
 
 cache_table_t cache_table_new() {
 	cache_table_t table;
@@ -48,7 +47,5 @@ cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, cha
 }
 
 cache_elem_t cache_table_get(cache_table_t table, network_address_t dest) {
-    
+    return NULL;    
 }
-
-cache_

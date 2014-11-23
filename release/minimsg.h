@@ -15,6 +15,8 @@
 #include "queue.h"
 #include <stdio.h>
 
+#include "miniroute.h"
+
 /* The maximum size of a minimsg.
  * Must be <= MAX_NETWORK_PKT_SIZE - NETWORK_HDR_SIZE
  */

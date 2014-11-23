@@ -4,7 +4,7 @@
 #include "minisocket.h"
 
 minisocket_t* sockets = NULL; // Array of minisockets with each element representing a port
-// semaphore_t skt_mutex = NULL; // Mutual exclusion semaphore for manipulating socket data structures
+semaphore_t skt_mutex = NULL; // Mutual exclusion semaphore for manipulating socket data structures
 int used_server_ports = 0; // Number of server ports in use
 int used_client_ports = 0; // Number of client ports in use
 
