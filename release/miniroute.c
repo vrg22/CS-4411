@@ -54,10 +54,17 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 		semaphore_P(cache_mutex);
 		dest_elem = cache_table_get(cache, dest_address);
 		semaphore_V(cache_mutex);
-	} else if (dest_elem->path == NULL) {
+	} else if (dest_elem->path[0][0] == 0) {
 		fprintf(stderr, "ERROR: miniroute_send_pkt() found non-null cache entry with null path\n");
 		return -1;
 	}
+
+	/* DEBUG */
+	network_format_address(dest_address, address, 20);
+	fprintf(stderr, "Destination Address: %s\n", address);
+	unpack_address(&dest_elem->path[0][0], next_hop);
+	network_format_address(next_hop, address, 20);
+	fprintf(stderr, "Source/My Address: %s\n", address);
 
 	// Build routing_hdr with updated fields
 	routing_hdr->routing_packet_type = ROUTING_DATA;
@@ -84,9 +91,8 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 
 	// Assign first address in path as the next hop destination
 	unpack_address(&routing_hdr->path[1][0], next_hop);
-
 	network_format_address(next_hop, address, 20);
-	fprintf(stderr, "Address: %s\n", address);
+	fprintf(stderr, "Next Hop Address: %s\n", address);
 
 	result = network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, data_len + hdr_len, payload);
 
@@ -159,7 +165,6 @@ int miniroute_discover_path(network_address_t dest_address) {
 	network_address_t myaddr;
 	cache_elem_t dest_elem = NULL;
 	int status = 0;
-	// int found = 0;
 	routing_header_t routing_hdr;
 
 	send_attempts = 0;
@@ -181,11 +186,9 @@ int miniroute_discover_path(network_address_t dest_address) {
 	}
 	semaphore_V(cache_mutex);
 
-	
 	semaphore_P(dest_elem->mutex);
 
-	if (dest_elem->path == NULL){ // No path here. Checked because another thread might have run ahead of me and populated this
-
+	if (dest_elem->path[0][0] == 0){ // No path here. Checked because another thread might have run ahead of me and populated this
 		// Allocate new header for packet
 		routing_hdr = malloc(sizeof(struct routing_header));
 		if (routing_hdr == NULL) {	// Could not allocate header
@@ -199,9 +202,10 @@ int miniroute_discover_path(network_address_t dest_address) {
 		pack_unsigned_int(routing_hdr->id, id);
 		pack_unsigned_int(routing_hdr->ttl, MAX_ROUTE_LENGTH);
 		pack_unsigned_int(routing_hdr->path_len, 1);
-		pack_address(routing_hdr->path[0], myaddr);
+		pack_address(&routing_hdr->path[0][0], myaddr);
 
 		while (send_attempts < MAX_DISC_ATTEMPTS && !received_next_packet) {
+			fprintf(stderr, "DEBUG: Send attempt: %i\n", send_attempts);
 			if (network_bcast_pkt(sizeof(struct routing_header), (char*) routing_hdr, 0, NULL) < 0) {
 				fprintf(stderr, "ERROR: miniroute_discover_path() failed to successfully execute network_bcast_pkt()\n");
 				semaphore_V(dest_elem->mutex);

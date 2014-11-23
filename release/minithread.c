@@ -405,7 +405,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 			path[i][j] = buffer[21 + 8*i + j];
 		}
 	}
-	buffer = &buffer[21 + 8*MAX_ROUTE_LENGTH]; // Bump to start of payload
+	//buffer = &buffer[21 + 8*MAX_ROUTE_LENGTH]; // Bump to start of payload
 
 	if (routing_packet_type == ROUTING_DATA) {
 		if (network_compare_network_addresses(destination, my_addr)) { // I am final destination
@@ -664,7 +664,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 				fprintf(stderr, "ERROR: network_handler() found a reply for null cache destination\n");
 				return;
 			}
-			if (dest_elem->path == NULL) { // Only update cache entry's path if not already completed
+			if (dest_elem->path[0][0] == 0) { // Only update cache entry's path if not already completed
 				if (dest_elem->reply != NULL && dest_elem->reply->executed == 0) { // Timout has not yet occured and reply has not already been received
 					deregister_alarm(dest_elem->reply);
 					dest_elem->reply = NULL;
