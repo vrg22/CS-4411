@@ -1,8 +1,9 @@
 #include "hashtable.h"
+#include "miniroute.h"
 
 cache_table_t cache_table_new() {
 	cache_table_t table;
-	int i;
+	// int i;
 
 	table = malloc(sizeof(struct cache_table));
 	if (table == NULL) { // malloc() failed
@@ -25,8 +26,7 @@ cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, cha
         return NULL;
     }
 
-    entry->dest = dest;
-    entry->path = NULL;
+    network_address_copy(dest, entry->dest);
     entry->mutex = semaphore_create();
     semaphore_initialize(entry->mutex, 1);
     entry->timeout = semaphore_create();
@@ -37,11 +37,11 @@ cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, cha
     index = hash_address(entry->dest) % table->size;
 
     i = 0;
-    while (table[(index + i) % table->size] != NULL && i < table->size) {
+    while (table->table[(index + i) % table->size] != NULL && i < table->size) {
         i++;
     }
 
-    table[(index + i) % table->size] = entry;
+    table->table[(index + i) % table->size] = entry;
 
     return entry;
 }

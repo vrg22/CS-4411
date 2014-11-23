@@ -6,12 +6,11 @@
 #ifndef __SYNCH_H__
 #define __SYNCH_H__
 
-#include "machineprimitives.h"			//CHECK THAT THESE ARE OK
+#include "machineprimitives.h"
 #include "queue.h"
 #include "defs.h"
-#include "minithread.h"
 
- /*
+/*
  * Semaphores.
  */
 typedef struct semaphore *semaphore_t;

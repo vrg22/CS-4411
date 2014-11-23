@@ -16,7 +16,6 @@
 #include "miniheader.h"
 #include "minimsg.h"
 #include "minisocket.h"
-#include "hashtable.h"
 
 
 /*
@@ -392,12 +391,13 @@ void minithread_deallocate_func(void* null_arg, void* thread) {
 void network_handler(network_interrupt_arg_t* pkt) {
 	network_address_t my_addr, destination, reply_dest, next_hop, temp, dest_addr;
 	cache_elem_t dest_elem;
-	int id, ttl, path_len;
+	int /*id,*/ ttl, path_len;
 	int i, j;
 	char* buffer;
 	char path[MAX_ROUTE_LENGTH][8];
 	char new_path[MAX_ROUTE_LENGTH][8];
 	char routing_packet_type;
+	routing_header_t routing_hdr;
 
 	char protocol, msg_type;
 	network_address_t src_addr;
@@ -415,7 +415,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 	buffer = pkt->buffer;
 	routing_packet_type = buffer[0];
 	unpack_address(&buffer[1], destination);
-	id = unpack_unsigned_int(&buffer[9]);
+	// id = unpack_unsigned_int(&buffer[9]); 		// NEED TO USE
 	ttl = unpack_unsigned_int(&buffer[13]);
 	path_len = unpack_unsigned_int(&buffer[17]); // Path length of received packet
 	for (i = 0; i < path_len; i++) {	// Extract path from packet
@@ -423,6 +423,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 			path[i][j] = buffer[21 + 8*i + j];
 		}
 	}
+	buffer = &buffer[21 + 8*MAX_ROUTE_LENGTH]; // Bump to start of payload
 
 	if (routing_packet_type == ROUTING_DATA) {
 		if (network_compare_network_addresses(destination, my_addr)) {
@@ -582,8 +583,26 @@ void network_handler(network_interrupt_arg_t* pkt) {
 				unpack_address(path[MAX_ROUTE_LENGTH - ttl + 1], next_hop);
 			}
 
-			// Build header
-			network_send_pkt(next_hop, );
+			// Allocate new routing header
+			routing_hdr = malloc(sizeof(struct routing_header));
+			if (routing_hdr == NULL) {	// Could not allocate header
+				fprintf(stderr, "ERROR: network_handler() failed to malloc routing header\n");
+				return;
+			}
+
+			// Build routing_hdr with updated fields
+			routing_hdr->routing_packet_type = ROUTING_DATA;
+			pack_address(routing_hdr->destination, destination);
+			pack_unsigned_int(routing_hdr->ttl, ttl);
+			pack_unsigned_int(routing_hdr->path_len, path_len);
+			for (i = 0; i < path_len/*MAX_ROUTE_LENGTH*/; i++) {
+				for (j = 0; j < 8; j++) {
+					routing_hdr->path[i][j] = path[i][j];
+				}
+			}
+
+			// Unicast send to next hop
+			network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, (pkt->size - sizeof(struct routing_header)), buffer);
 		}
 	} else if (routing_packet_type == ROUTING_ROUTE_DISCOVERY) {
 		if (network_compare_network_addresses(destination, my_addr)) { // I am final destination
@@ -602,9 +621,28 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
 			unpack_address(&path[1][0], next_hop); // Set destination address for reply packet's next hop
 			
-			// Build header
-			network_send_pkt();
-		} else { // Discovery packet needs to be rebroadcasted
+			// Allocate new routing header
+			routing_hdr = malloc(sizeof(struct routing_header));
+			if (routing_hdr == NULL) {	// Could not allocate header
+				fprintf(stderr, "ERROR: network_handler() failed to malloc routing header\n");
+				return;
+			}
+
+			// Build routing_hdr with updated fields
+			routing_hdr->routing_packet_type = ROUTING_ROUTE_REPLY;
+			pack_address(routing_hdr->destination, reply_dest);
+			pack_unsigned_int(routing_hdr->ttl, MAX_ROUTE_LENGTH);
+			pack_unsigned_int(routing_hdr->path_len, path_len);
+			for (i = 0; i < path_len/*MAX_ROUTE_LENGTH*/; i++) {
+				for (j = 0; j < 8; j++) {
+					routing_hdr->path[i][j] = new_path[i][j]; // Header should have the REVERSED path
+				}
+			}
+
+			// Unicast send to reply dest
+			network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, 0, NULL); // No relevant data
+
+		} else { // Discovery packet needs to be rebroadcast
 			ttl--;
 			if (ttl > 0) {
 				// Check that I have not gotten this before
@@ -620,7 +658,26 @@ void network_handler(network_interrupt_arg_t* pkt) {
 				pack_address(&path[path_len][0], my_addr);
 				path_len++;
 				
+				// Allocate new routing header
+				routing_hdr = malloc(sizeof(struct routing_header));
+				if (routing_hdr == NULL) {	// Could not allocate header
+					fprintf(stderr, "ERROR: network_handler() failed to malloc expanded header\n");
+					return;
+				}
+
+				// Build routing_hdr with updated fields
+				routing_hdr->routing_packet_type = ROUTING_ROUTE_DISCOVERY;
+				pack_address(routing_hdr->destination, destination);
+				pack_unsigned_int(routing_hdr->ttl, ttl);
+				pack_unsigned_int(routing_hdr->path_len, path_len);
+				for (i = 0; i < path_len/*MAX_ROUTE_LENGTH*/; i++) {
+					for (j = 0; j < 8; j++) {
+						routing_hdr->path[i][j] = path[i][j];
+					}
+				}
+
 				// Rebroadcast packet w/ updated params
+				network_bcast_pkt(sizeof(struct routing_header), (char*) routing_hdr, 0, NULL); // No relevant data
 			}
 		}
 	} else if (routing_packet_type == ROUTING_ROUTE_REPLY) {
@@ -649,14 +706,33 @@ void network_handler(network_interrupt_arg_t* pkt) {
 				fprintf(stderr, "ERROR: network_handler() found a reply for non-null cache path\n");
 				return;
 			}
-		} else { // Reply packet needs to be forawrded
+		} else { // Reply packet needs to be forwarded
 			ttl--;
 			if (ttl > 0 && MAX_ROUTE_LENGTH - ttl + 1 < path_len) {
 				unpack_address(path[MAX_ROUTE_LENGTH - ttl + 1], next_hop);
 			}
 
-			// Build header
-			network_send_pkt();
+			// Allocate new routing header
+			routing_hdr = malloc(sizeof(struct routing_header));
+			if (routing_hdr == NULL) {	// Could not allocate header
+				fprintf(stderr, "ERROR: network_handler() failed to malloc routing header\n");
+				return;
+			}
+
+			// Build routing_hdr with updated fields
+			routing_hdr->routing_packet_type = ROUTING_ROUTE_REPLY;
+			pack_address(routing_hdr->destination, destination);
+			pack_unsigned_int(routing_hdr->ttl, ttl);
+			pack_unsigned_int(routing_hdr->path_len, path_len);
+			for (i = 0; i < path_len/*MAX_ROUTE_LENGTH*/; i++) {
+				for (j = 0; j < 8; j++) {
+					routing_hdr->path[i][j] = path[i][j];
+				}
+			}
+
+			// Unicast forward the reply to next hop
+			network_send_pkt(next_hop, sizeof(struct routing_header), (char*) routing_hdr, 0, NULL); // No relevant data
+
 		}
 
 	} else {

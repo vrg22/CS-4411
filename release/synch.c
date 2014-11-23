@@ -4,6 +4,7 @@
 
 #include "synch.h"
 #include "interrupts.h"
+#include "minithread.h"
 
 /*
  *      You must implement the procedures and types defined in this interface.

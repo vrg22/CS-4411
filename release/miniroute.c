@@ -24,7 +24,8 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 	network_address_t next_hop;
 	routing_header_t routing_hdr; // Routing layer header
 	//char* hdr_full[sizeof(struct routing_header) + hdr_len]; // routing_hdr followed by hdr
-	int path_len, pathfound, i, j;
+	int pathfound, i, j;
+	// int path_len;
 	// int hdr_full_len;
 	cache_elem_t dest_elem;
 	char payload[hdr_len + data_len];
@@ -60,7 +61,7 @@ int miniroute_send_pkt(network_address_t dest_address, int hdr_len, char* hdr, i
 	routing_hdr->routing_packet_type = ROUTING_DATA;
 	pack_address(routing_hdr->destination, dest_address);
 	pack_unsigned_int(routing_hdr->ttl, MAX_ROUTE_LENGTH);
-	pack_unsigned_int(routing_hdr->path_len, path_len);
+	pack_unsigned_int(routing_hdr->path_len, dest_elem->path_len);
 	/*for (i = 0; i < MAX_ROUTE_LENGTH; i++) {
 		pack_address(routing_hdr->path[i], path[i]);
 	}*/
@@ -146,12 +147,9 @@ int miniroute_discover_path(network_address_t dest_address) {
 	int send_attempts, timeout, received_next_packet;
 	network_address_t myaddr;
 	cache_elem_t dest_elem = NULL;
-	semaphore_t dest_sema = NULL;
-	alarm_t dest_alarm = NULL; // Issue here is that we have no local data structure that encapsulates a single alarm -> so we can't in net_handler just
-							// decide to deregister something, UNLESS we make it visible there. Instead, we can have the first thing we do after waking up from
-							// discovery_blocking be to check whether alarm exec'd or not 
 	int status = 0;
-	int found = 0;
+	// int found = 0;
+	routing_header_t routing_hdr;
 
 	send_attempts = 0;
 	timeout = DISCOVERY_TIMEOUT;
@@ -163,7 +161,7 @@ int miniroute_discover_path(network_address_t dest_address) {
 	dest_elem = cache_table_get(cache, dest_address);
 	if (dest_elem == NULL){
 		//create element
-		dest_elem = cache_table_insert(cache, dest_address, dest_sema, dest_alarm, NULL);	//don't specify path here, leave NULL
+		dest_elem = cache_table_insert(cache, dest_address, NULL);	//don't specify path here, leave NULL
 		if (dest_elem == NULL) {
 			fprintf(stderr, "ERROR: miniroute_discover_path() failed to insert new cache element\n");
 			semaphore_V(cache_mutex);
@@ -187,13 +185,13 @@ int miniroute_discover_path(network_address_t dest_address) {
 		// Build routing_hdr with updated fields
 		routing_hdr->routing_packet_type = ROUTING_ROUTE_DISCOVERY;
 		pack_address(routing_hdr->destination, dest_address);
-		pack_unsigned_int(routing_hdr->id, SOMETHING); //                  FILL IN HERE
+		pack_unsigned_int(routing_hdr->id, id);
 		pack_unsigned_int(routing_hdr->ttl, MAX_ROUTE_LENGTH);
 		pack_unsigned_int(routing_hdr->path_len, 1);
 		pack_address(routing_hdr->path[0], myaddr);
 
-		while (send_attempts < MAX_SEND_ATTEMPTS && !received_next_packet) {
-			if (network_bcast_pkt(sizeof(struct routing_header), routing_hdr, 0, NULL) < 0) {
+		while (send_attempts < MAX_DISC_ATTEMPTS && !received_next_packet) {
+			if (network_bcast_pkt(sizeof(struct routing_header), (char*) routing_hdr, 0, NULL) < 0) {
 				fprintf(stderr, "ERROR: miniroute_discover_path() failed to successfully execute network_bcast_pkt()\n");
 				semaphore_V(dest_elem->mutex);
 				return -1; // Failure

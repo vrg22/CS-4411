@@ -12,13 +12,13 @@
 #define __MINITHREAD_H__
 
 #include "machineprimitives.h"
+#include "hashtable.h"
 #include "interrupts.h"
 #include "queue.h"
 #include "synch.h"
 #include "alarm.h"
 #include "multilevel_queue.h"
 #include "network.h"
-#include "hashtable.h"
 
 
 /*

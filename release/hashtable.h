@@ -1,9 +1,8 @@
 #ifndef __HASHTABLE_H__
 #define __HASHTABLE_H__
 
-//#include "miniroute.h"
-#include "network.h"
 #include "synch.h"
+#include "network.h"
 #include "alarm.h"
 
 typedef struct cache_elem* cache_elem_t;
@@ -30,7 +29,7 @@ struct cache_table {
 
 extern cache_table_t cache_table_new();
 
-extern int cache_table_insert(cache_table_t table, network_address_t dest, char* path);
+extern cache_elem_t cache_table_insert(cache_table_t table, network_address_t dest, char* path);
 
 extern cache_elem_t cache_table_get(cache_table_t table, network_address_t dest);
 
