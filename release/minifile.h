@@ -2,6 +2,7 @@
 #define __MINIFILE_H__
 
 #include "defs.h"
+#include "block_defs.h"
 
 /*
  * Definitions for minifiles.
@@ -13,6 +14,7 @@
  */
 
 typedef struct minifile* minifile_t;
+
 
 /* 
  * General requiremens:
