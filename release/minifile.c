@@ -16,7 +16,32 @@ minifile_t minifile_creat(char *filename) {
 }
 
 minifile_t minifile_open(char *filename, char *mode) {
+	int plus = 0;
 
+	// Check for invalid arguments
+	if (filename == NULL) {
+		fprintf(stderr, "ERROR: minifile_open() was passed a NULL filename pointer\n");
+		return NULL;
+	}
+	if (mode == NULL) {
+		fprintf(stderr, "ERROR: minifile_open() was passed a NULL mode pointer\n");
+		return NULL;
+	}
+
+	// Set file mode type
+	if (*(mode + 1)) {
+		plus = 1;
+	}
+	if (*mode == 'r') {
+		file->mode = plus ? RP : R;
+	} else if (*mode == 'w') {
+		file->mode = plus ? WP : W;
+	} else if (*mode == 'a') {
+		file->mode = plus ? AP : A;
+	} else {
+		fprintf(stderr, "ERROR: minifile_open() called with invalid mode type\n");
+		return NULL;
+	}
 }
 
 int minifile_read(minifile_t file, char *data, int maxlen) {

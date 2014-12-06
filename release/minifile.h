@@ -15,6 +15,8 @@
 
 typedef struct minifile* minifile_t;
 
+typedef enum {R, RP, W, WP, A, AP} file_mode_t;
+
 
 /* 
  * General requiremens:
