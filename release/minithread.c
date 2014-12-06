@@ -125,8 +125,8 @@ void minithread_start(minithread_t t) {
 	// Place at level 0 by default
 	// current->run_level = 0;
 	if (multilevel_queue_enqueue(run_queue, t->run_level, t) < 0) {
-	fprintf(stderr, "ERROR: minithread_yield() failed to append thread to end of level 0 in run_queue\n");
-	return;
+		fprintf(stderr, "ERROR: minithread_yield() failed to append thread to end of level 0 in run_queue\n");
+		return;
 	}
 	semaphore_V(mutex);
 
@@ -142,8 +142,8 @@ void minithread_yield() {
 	semaphore_P(mutex);
 	/* Move current process to end of its current level in run_queue */
 	if (multilevel_queue_enqueue(run_queue, current->run_level, current) < 0) {
-	fprintf(stderr, "ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
-	return;
+		fprintf(stderr, "ERROR: minithread_yield() failed to append current process to end of its level in run_queue\n");
+		return;
 	}
 	semaphore_V(mutex);
 
@@ -170,7 +170,7 @@ void clock_handler(void* arg) {
 	clk_count++; // Increment clock count
 
 	if (alarm_queue == NULL) { // Ensure alarm_queue has been initialized
-	 alarm_queue = queue_new();
+		alarm_queue = queue_new();
 	}
 	iter = alarm_queue->head;
 
@@ -188,30 +188,30 @@ void clock_handler(void* arg) {
 
 	// Process last alarm_queue element
 	if (iter && (((alarm_t)(iter->data))->deadline <= ((unsigned long long) clk_count) * clk_period)) {
-	alarm = (alarm_t) iter->data;
-	if (alarm->executed != 1) {      //Only if we haven't yet processed this alarm
-		func = alarm->func;
-		argument = alarm->arg;
-		func(argument);
-		alarm->executed = 1;
-	}
+		alarm = (alarm_t) iter->data;
+		if (alarm->executed != 1) {      //Only if we haven't yet processed this alarm
+			func = alarm->func;
+			argument = alarm->arg;
+			func(argument);
+			alarm->executed = 1;
+		}
 	}
 
 
 	// Track non-privileged process quanta
 	if (current != globaltcb) {  // Applies only to non-OS threads
-	(current->quanta_left)--;    // Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
-	
-	// Time's Up
-	if (current->quanta_left == 0) {
-		current->run_level = (current->run_level + 1) % 4;   // Choose to wrap around processes to have priority "refreshed"
-		current->quanta_left = quanta_level[current->run_level];
-		multilevel_queue_enqueue(run_queue, current->run_level, current);
+		(current->quanta_left)--;    // Do we guarantee that this only happens AFTER the current thread has run >= 1 quanta?
 		
-		current = globaltcb;
-		// system_run_level = -1;
-		minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
-	}
+		// Time's Up
+		if (current->quanta_left == 0) {
+			current->run_level = (current->run_level + 1) % 4;   // Choose to wrap around processes to have priority "refreshed"
+			current->quanta_left = quanta_level[current->run_level];
+			multilevel_queue_enqueue(run_queue, current->run_level, current);
+			
+			current = globaltcb;
+			// system_run_level = -1;
+			minithread_switch(&(tcb_old->stacktop), &(globaltcb->stacktop));  //Context switch to OS to choose next process
+		}
 	}
 
 	set_interrupt_level(old_level); // Restore old interrupt level
@@ -235,8 +235,8 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	// Create "OS"/kernel TCB
 	globaltcb = (minithread_t) malloc(sizeof(struct minithread));
 	if (globaltcb == NULL) { // Fail if malloc() fails
-	fprintf(stderr, "ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
-	return;
+		fprintf(stderr, "ERROR: minithread_system_initialize() failed to malloc kernel TCB\n");
+		return;
 	}
 
 	// Allocate stack
@@ -275,16 +275,16 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
 	// OS Code
 	while (1) {
-	// Periodically free up zombie queue
-	if (queue_length(zombie_queue) == zombie_limit) {
-		queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
-		//queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
-		zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
-	}
+		// Periodically free up zombie queue
+		if (queue_length(zombie_queue) == zombie_limit) {
+			queue_iterate(zombie_queue, (func_t) minithread_deallocate_func, NULL);     //deallocate all threads in zombie queue
+			//queue_free(zombie_queue);                                 //NOTE: Would NOT need to again do "queue_new" for zombie_thread
+			zombie_queue = queue_new();                               //IFF we've written queue_free such that it does not make zombie_queue NULL 
+		}
 
-	if (multilevel_queue_length(run_queue) > 0) {
-		minithread_next(globaltcb); // Select next ready process
-	}
+		if (multilevel_queue_length(run_queue) > 0) {
+			minithread_next(globaltcb); // Select next ready process
+		}
 	}  
 }
 
@@ -332,7 +332,7 @@ void minithread_next(minithread_t self) {
 	system_run_level = multilevel_queue_dequeue(run_queue, nxt_lvl, (void**) &current); // Set new run_level
 
 	if (current == NULL) {
-	fprintf(stderr, "ERROR: minithread_next() attempted to context switch to NULL current thread pointer\n");
+		fprintf(stderr, "ERROR: minithread_next() attempted to context switch to NULL current thread pointer\n");
 	}
 
 	minithread_switch(&(self->stacktop), &(current->stacktop)); // Context switch to next ready process

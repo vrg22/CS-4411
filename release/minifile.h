@@ -92,7 +92,7 @@ int minifile_rmdir(char *dirname);
  * Returns the size of the file (possibly 0) if it is a regular file,
  * -1 if the file doesn't exist and -2 if it is a directory.
  */
-int minifile_stat(char *path); 
+int minifile_stat(char *path);
 
 /* Changes the current directory to path. The current directory is 
  * maintained individually for every thread and is the directory
