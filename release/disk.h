@@ -94,7 +94,7 @@ typedef void (*disk_handler_t)(disk_t* disk, disk_request_t, disk_reply_t);
 
 int disk_initialize(disk_t* disk);
 
-int disk_send_request(disk_t*, int, char*,disk_request_type_t);
+int disk_send_request(disk_t*, int, char*, disk_request_type_t);
 
 int disk_shutdown(disk_t* disk);
 
