@@ -35,8 +35,8 @@ extern int disk_flags;			/* Set to DISK_READWRITE or DISK_READONLY */
 extern int disk_size;			/* Set to the number of blocks allocated for disk */
 
 typedef enum {
-  DISK_READWRITE=0,
-  DISK_READONLY=1
+  DISK_READWRITE = 0,
+  DISK_READONLY = 1
 } disk_flags_t;
  
 typedef struct {
@@ -92,28 +92,20 @@ typedef struct {
 
 typedef void (*disk_handler_t)(disk_t* disk, disk_request_t, disk_reply_t);
 
-int
-disk_initialize(disk_t* disk);
+int disk_initialize(disk_t* disk);
 
-int 
-disk_send_request(disk_t*, int, char*,disk_request_type_t);
+int disk_send_request(disk_t*, int, char*,disk_request_type_t);
 
-int
-disk_shutdown(disk_t* disk);
+int disk_shutdown(disk_t* disk);
 
-void
-disk_set_flags(disk_t* disk, int flags);
+void disk_set_flags(disk_t* disk, int flags);
 
-void
-disk_unset_flags(disk_t* disk, int flags);
+void disk_unset_flags(disk_t* disk, int flags);
 
-int
-disk_read_block(disk_t* disk, int blocknum, char* buffer);
+int disk_read_block(disk_t* disk, int blocknum, char* buffer);
 
-int
-disk_write_block(disk_t* disk, int blocknum, char* buffer);
+int disk_write_block(disk_t* disk, int blocknum, char* buffer);
 
-void
-install_disk_handler(interrupt_handler_t disk_handler);
+void install_disk_handler(interrupt_handler_t disk_handler);
 
 #endif /*__DISK_H__*/
