@@ -37,12 +37,15 @@ OBJ =                              \
     hashtable.o					   \
     synch.o                        \
     read.o                         \
+    disk.o                         \
     miniheader.o                   \
     minimsg.o                      \
     minisocket.o                   \
     miniroute.o                    \
+    minifile.o                     \
     multilevel_queue.o             \
-    network.o
+    network.o                      \
+    shell.o
 
 %: %.o start.o end.o $(OBJ) $(SYSTEMOBJ)
 	$(CC) $(LIB) -o $@ start.o $(filter-out start.o end.o $(SYSTEMOBJ), $^) end.o $(SYSTEMOBJ) $(LFLAGS)
