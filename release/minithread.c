@@ -237,7 +237,12 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	return;
   }
 
+  // Allocate stack
   minithread_allocate_stack(&(globaltcb->stackbase), &(globaltcb->stacktop));
+
+  // Initialize Disk
+  disk_initialize(&disk);
+  install_disk_handler(disk_handler);
 
   // Create mutex for shared-state accesses
   mutex = semaphore_create();
