@@ -206,7 +206,8 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	pack_unsigned_short(hdr->destination_port, local_bound_port->u.bound.remote_unbound_port); // Destination port
 
 	// Call miniroute_send_pkt() from network.hdr
-	if (miniroute_send_pkt(dest, sizeof(struct mini_header), (char*) hdr, len, msg) < 0) {
+	if (network_send_pkt(dest, sizeof(struct mini_header), (char*) hdr, len, msg) < 0) {			// REMOVE THIS LINE
+	// if (miniroute_send_pkt(dest, sizeof(struct mini_header), (char*) hdr, len, msg) < 0) {
 		fprintf(stderr, "ERROR: minimsg_send() failed to successfully execute miniroute_send_pkt()\n");
 		semaphore_V(msgmutex);
 		return -1;
