@@ -121,7 +121,7 @@ int inputfile(char *fname) {
 	printf("---inputting %s: input \"ctrl-D,ENTER\" on a new line to exit---\n",fname);
 	do {
 		memset(str,'\0',BUFFER_SIZE);
-		fgets(str);
+		fgets(str, BUFFER_SIZE, stdin);
 		if(str[0] == 4) //that's what ctrl-D puts in ((char)4)
 			break;
 		str[strlen(str)] = '\n';
