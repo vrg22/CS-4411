@@ -20,6 +20,8 @@
 #include "multilevel_queue.h"
 #include "network.h"
 
+#include "disk.h"
+
 
 /*
  * struct minithread:
@@ -146,5 +148,7 @@ extern void minithread_deallocate_func(void* null_arg, void* thread);
 extern void network_handler(network_interrupt_arg_t* pkt);
 
 extern void remove_cache_entry(cache_elem_t entry);
+
+extern void disk_handler(disk_interrupt_arg_t arg);
 
 #endif /*__MINITHREAD_H__*/

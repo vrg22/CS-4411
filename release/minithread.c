@@ -18,6 +18,8 @@
 #include "minisocket.h"
 #include "read_private.h"
 
+#include "minifile.h"
+
 
 /*
  * A minithread should be defined either in this file or in a private
