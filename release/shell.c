@@ -170,7 +170,7 @@ int shell(int *g) {
 		memset(arg1,'\0',BUFFER_SIZE);
 		memset(arg2,'\0',BUFFER_SIZE);
 		put_prompt();
-		gets(command);
+		fgets(command, BUFFER_SIZE, stdin);
 		//extract first three strings in command (delimited by spaces)
 		sscanf(command,"%s %s %s",func,arg1,arg2);
 		if(strcmp(func,"help") == 0)
