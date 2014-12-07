@@ -1,4 +1,5 @@
 #include "minifile.h"
+#include "disk.h"
 
 /*
  * struct minifile:
@@ -12,7 +13,7 @@ struct minifile {
 };
 
 minifile_t minifile_creat(char *filename) {
-
+	return NULL;
 }
 
 minifile_t minifile_open(char *filename, char *mode) {
@@ -45,42 +46,42 @@ minifile_t minifile_open(char *filename, char *mode) {
 }
 
 int minifile_read(minifile_t file, char *data, int maxlen) {
-
+	return 0;
 }
 
 int minifile_write(minifile_t file, char *data, int len) {
-
+	return 0;
 }
 
 int minifile_close(minifile_t file) {
-
+	return 0;
 }
 
 int minifile_unlink(char *filename) {
-
+	return 0;
 }
 
 int minifile_mkdir(char *dirname) {
-
+	return 0;
 }
 
 int minifile_rmdir(char *dirname) {
-
+	return 0;
 }
 
 int minifile_stat(char *path) {
-
+	return 0;
 } 
 
 int minifile_cd(char *path) {
-
+	return 0;
 }
 
 char **minifile_ls(char *path) {
-
+	return NULL;
 }
 
 char* minifile_pwd(void) {
-
+	retun NULL;
 }
 

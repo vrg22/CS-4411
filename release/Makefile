@@ -38,6 +38,7 @@ OBJ =                              \
     synch.o                        \
     read.o                         \
     disk.o                         \
+    mkfs.o                         \
     miniheader.o                   \
     minimsg.o                      \
     minisocket.o                   \
@@ -45,7 +46,7 @@ OBJ =                              \
     minifile.o                     \
     multilevel_queue.o             \
     network.o                      \
-    shell.o
+    shell.o 					   
 
 %: %.o start.o end.o $(OBJ) $(SYSTEMOBJ)
 	$(CC) $(LIB) -o $@ start.o $(filter-out start.o end.o $(SYSTEMOBJ), $^) end.o $(SYSTEMOBJ) $(LFLAGS)

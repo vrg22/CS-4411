@@ -20,7 +20,6 @@
 
 #include "minifile.h"
 
-
 /*
  * A minithread should be defined either in this file or in a private
  * header file.  Minithreads have a stack pointer with which to make procedure
@@ -43,6 +42,10 @@ int thread_ctr = 0;                             // Counts created threads (used 
 minithread_t current;                           // Keeps track of the currently running minithread
 queue_t zombie_queue;                           // Keeps dead threads for cleanup. Cleaned by kernel TCB when size exceeds limit
 int zombie_limit = 5;                           // Limit on length of zombie queue  
+
+/* DISK VARIABLES*/
+disk_t disk;
+
 
 
 /* minithread functions */
@@ -269,7 +272,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 
 	// Initialize Disk
 	disk_initialize(&disk);
-	install_disk_handler(disk_handler);
+	install_disk_handler((interrupt_handler_t) disk_handler);
 
 	set_interrupt_level(ENABLED);
 

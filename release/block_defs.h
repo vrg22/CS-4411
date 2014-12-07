@@ -4,6 +4,8 @@
 #include "disk.h"
 
 
+#define TABLE_SIZE 100 //FIX THIS LATER!!!!!!!!
+
 typedef struct superblock {
 	union {
 		struct {
@@ -17,7 +19,7 @@ typedef struct superblock {
 		} data;
 
 		char padding[DISK_BLOCK_SIZE];
-	}
+	};
 } *superblock_t;
 
 typedef struct inode {
@@ -31,7 +33,7 @@ typedef struct inode {
 		} data;
 
 		char padding[DISK_BLOCK_SIZE];
-	}
+	};
 } *inode_t;
 
 typedef struct dir_data_block {
@@ -42,7 +44,7 @@ typedef struct dir_data_block {
 		} data;
 
 		char padding[DISK_BLOCK_SIZE];
-	}
+	};
 } *dir_data_block_t;
 
 typedef struct free_data_block {
@@ -50,7 +52,7 @@ typedef struct free_data_block {
 		char next_free_block[4];
 
 		char padding[DISK_BLOCK_SIZE];
-	}
+	};
 } *free_data_block_t;
 
 #endif /* __BLOCK_DEFS_H__ */
