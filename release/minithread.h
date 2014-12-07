@@ -53,7 +53,7 @@ extern queue_t alarm_queue;		// Queue containing alarms (soonest deadline at hea
 extern cache_table_t cache;
 
 /* DISK VARIABLES*/
-extern disk_t* disk;
+extern disk_t disk;
 
 
 /*

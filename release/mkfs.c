@@ -36,7 +36,7 @@ void make_fs(char* disksize) {
 
 
 	//Write superblock to disk
-	written = disk_write_block(disk, 0, (char*) superblk);
+	written = disk_write_block(&disk, 0, (char*) superblk);
 
 	if (written == 0) { // Success
 		printf("SUCCESS!\n");

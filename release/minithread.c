@@ -44,7 +44,7 @@ queue_t zombie_queue;                           // Keeps dead threads for cleanu
 int zombie_limit = 5;                           // Limit on length of zombie queue  
 
 /* DISK VARIABLES*/
-disk_t* disk;
+disk_t disk;
 
 
 
@@ -271,7 +271,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	miniterm_initialize();
 
 	// Initialize Disk
-	disk_initialize(disk); //&disk??
+	disk_initialize(&disk);
 	install_disk_handler((interrupt_handler_t) disk_handler);
 
 	set_interrupt_level(ENABLED);
