@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,8 +6,8 @@
 #include "block_defs.h"
 
 /* 
- * mkfs.h
- *       This module sets up the file system by setting up the disk and its superblock.
+ * mkfs.c
+ * This module sets up the file system by setting up the disk and its superblock.
  */
 
 void make_fs(char* disksize) {
@@ -31,10 +30,9 @@ void make_fs(char* disksize) {
 	}
 	memcpy(superblk->data.disk_size, disksize, 8);
 	// strcpy(superblk->data.root_inode, disksize);
-
 }
 
 int main(int argc, char** argv) {
-    minithread_system_initialize((proc_t) make_fs, (arg_t) argv[1]);
-    return -1;
+	minithread_system_initialize((proc_t) make_fs, (arg_t) argv[1]);
+	return -1;
 }

@@ -178,18 +178,18 @@ int shell(int *g) {
 		else if(strcmp(func,"cd") == 0)
 			minifile_cd(arg1);
 		else if(strcmp(func,"ls") == 0 || strcmp(func,"dir") == 0) {
-		  char **files = minifile_ls(arg1);
-		  printf("File listing for %s\n", arg1);
-		  for(i = 0; files != NULL && files[i] != NULL; ++i) {
-		    printf("\t%s\n",files[i]);
-		    free(files[i]);
-		  }
-		  if(files != NULL)
-		    free(files);
+			char **files = minifile_ls(arg1);
+			printf("File listing for %s\n", arg1);
+			for(i = 0; files != NULL && files[i] != NULL; ++i) {
+				printf("\t%s\n",files[i]);
+				free(files[i]);
+			}
+			if(files != NULL)
+				free(files);
 		} else if(strcmp(func,"pwd") == 0)
-		        printf("%s\n", minifile_pwd());
+			printf("%s\n", minifile_pwd());
 		else if(strcmp(func,"mkdir") == 0)
-		        minifile_mkdir(arg1);
+			minifile_mkdir(arg1);
 		else if(strcmp(func,"rmdir") == 0)
 			minifile_rmdir(arg1);
 		else if(strcmp(func,"rm") == 0 || strcmp(func,"del") == 0)
@@ -228,6 +228,6 @@ int shell(int *g) {
 }
 
 int main(int argc, char** argv) {
-    minithread_system_initialize(shell, NULL);
-    return -1;
+	minithread_system_initialize(shell, NULL);
+	return -1;
 }

@@ -13,7 +13,11 @@ struct minifile {
 };
 
 minifile_t minifile_creat(char *filename) {
-	return NULL;
+	// Check for invalid arguments
+	if (filename == NULL) {
+		fprintf(stderr, "ERROR: minifile_creat() was passed a NULL filename pointer\n");
+		return NULL;
+	}
 }
 
 minifile_t minifile_open(char *filename, char *mode) {
@@ -29,39 +33,76 @@ minifile_t minifile_open(char *filename, char *mode) {
 		return NULL;
 	}
 
-	// Set file mode type
-	if (*(mode + 1)) {
-		plus = 1;
+	// Set file mode type - must consider 'b' intermixed with chars
+	if (*mode == 'b') {
+		mode++;
 	}
-	if (*mode == 'r') {
+	if (*(mode + 1) && *(mode + 1) == 'b') {
+		if (*(mode + 2) && *(mode + 2) == '+') plus = 1;
+	} else {
+		if (*(mode + 1) && *(mode + 1) == '+') plus = 1;
+	}
+	if (*mode && *mode == 'r') {
 		file->mode = plus ? RP : R;
-	} else if (*mode == 'w') {
+	} else if (*mode && *mode == 'w') {
 		file->mode = plus ? WP : W;
-	} else if (*mode == 'a') {
+	} else if (*mode && *mode == 'a') {
 		file->mode = plus ? AP : A;
 	} else {
 		fprintf(stderr, "ERROR: minifile_open() called with invalid mode type\n");
 		return NULL;
 	}
+
+	return NULL;
 }
 
 int minifile_read(minifile_t file, char *data, int maxlen) {
+	// Check for invalid arguments
+	if (file == NULL) {
+		fprintf(stderr, "ERROR: minifile_read() was passed a NULL file pointer\n");
+		return NULL;
+	}
+
 	return 0;
 }
 
 int minifile_write(minifile_t file, char *data, int len) {
+	// Check for invalid arguments
+	if (file == NULL) {
+		fprintf(stderr, "ERROR: minifile_write() was passed a NULL file pointer\n");
+		return NULL;
+	}
+
 	return 0;
 }
 
 int minifile_close(minifile_t file) {
+	// Check for invalid arguments
+	if (file == NULL) {
+		fprintf(stderr, "ERROR: minifile_close() was passed a NULL file pointer\n");
+		return NULL;
+	}
+
 	return 0;
 }
 
 int minifile_unlink(char *filename) {
+	// Check for invalid arguments
+	if (filename == NULL) {
+		fprintf(stderr, "ERROR: minifile_unlink() was passed a NULL filename pointer\n");
+		return NULL;
+	}
+
 	return 0;
 }
 
 int minifile_mkdir(char *dirname) {
+	// Check for invalid arguments
+	if (dirname == NULL) {
+		fprintf(stderr, "ERROR: minifile_mkdir() was passed a NULL dirname pointer\n");
+		return NULL;
+	}
+
 	return 0;
 }
 
