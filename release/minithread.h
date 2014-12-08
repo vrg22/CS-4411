@@ -152,6 +152,6 @@ extern void network_handler(network_interrupt_arg_t* pkt);
 
 extern void remove_cache_entry(cache_elem_t entry);
 
-extern void disk_handler(disk_interrupt_arg_t arg);
+extern void disk_handler(disk_interrupt_arg_t* arg);
 
 #endif /*__MINITHREAD_H__*/

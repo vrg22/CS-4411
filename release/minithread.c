@@ -744,44 +744,43 @@ void remove_cache_entry(cache_elem_t entry) {
 	}
 }
 
-void disk_handler(disk_interrupt_arg_t arg) {
-	//disk_t* disk;
+void disk_handler(disk_interrupt_arg_t* arg) {
+	disk_t* disk_ptr;
 	disk_request_t request;
-	//disk_reply_t reply;
-	disk_request_type_t type;
+	disk_reply_t reply;
+	disk_request_type_t type; // CHECK: Not getting set!
 	int blocknum;
 	//char* buffer; // Should this now be the NON-NULL Block value for a read?
 
-	printf("IN DISK HANDLER!\n");
+	printf("\nIN DISK HANDLER!\n");
 
 	// Identify arg type
-	request = arg.request;
-	//reply = arg.reply;
+	disk_ptr = arg->disk;
+	request = arg->request;
+	reply = arg->reply;
 	type = request.type;
 	blocknum = request.blocknum;
 	//buffer = request.buffer;
 
+	printf("Name of your disk: %s\n", disk_name);	
+	printf("Size of disk (in blocks): %i\n", disk_ptr->layout.size);
+	printf("This arg's disk reply: %i\n", reply);
+
 	// Decide type of reply/request
-	printf("%i\n", type);
-	printf("%i\n", type);
 	if (type == DISK_READ) {
 		// decide if reply is OK, etc.
-		printf("This IS the read request....did it get processed yet?\n");
-
+		printf("Has this read request been processed yet?\n");
 		if (blocknum == 0){
-			printf("This IS the read request....did it get processed yet?\n");
+			//
 		}
 	} else {
-		printf("WHY NOT READ???\n");
+		printf("Type: %i\n", type);
+		printf("WHY isnt type specified correctly?\n");
 	}
 
 	// printf("Magic # = %i\n", atoi(superblk->data.magic_number));
 	// printf("Root inode # = %i\n", atoi(superblk->data.root_inode));
 	// // First free inode, first free data block
-
-
-
-
 
 	return;
 }
