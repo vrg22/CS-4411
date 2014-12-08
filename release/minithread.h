@@ -21,7 +21,7 @@
 #include "network.h"
 
 #include "disk.h"
-
+#include "block_defs.h"
 
 /*
  * struct minithread:

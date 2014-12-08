@@ -750,7 +750,8 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 	disk_reply_t reply;
 	disk_request_type_t type; // CHECK: Not getting set!
 	int blocknum;
-	//char* buffer; // Should this now be the NON-NULL Block value for a read?
+	char* block; // Should this now be the NON-NULL Block value for a read?
+	superblock_t superblk;
 
 	printf("\nIN DISK HANDLER!\n");
 
@@ -760,7 +761,7 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 	reply = arg->reply;
 	type = request.type;
 	blocknum = request.blocknum;
-	//buffer = request.buffer;
+	block = request.buffer;
 
 	printf("Name of your disk: %s\n", disk_name);	
 	printf("Size of disk (in blocks): %i\n", disk_ptr->layout.size);
@@ -769,18 +770,34 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 	// Decide type of reply/request
 	if (type == DISK_READ) {
 		// decide if reply is OK, etc.
-		printf("Has this read request been processed yet?\n");
-		if (blocknum == 0){
-			//
+		printf("Has this read request been processed yet?->FIG OUT\n");
+		if (reply == DISK_REPLY_FAILED) {
+			printf("failed\n");
 		}
-	} else {
-		printf("Type: %i\n", type);
-		printf("WHY isnt type specified correctly?\n");
-	}
+		else if (reply == DISK_REPLY_ERROR) {
+			printf("error\n");
+		}
+		else if (reply == DISK_REPLY_CRASHED) {
+			printf("crashed\n");
+		}
+		else { //REPLY_OK
+			if (blocknum == 0){
+				printf("Reading the superblock...\n");
+				superblk = (superblock_t) &block;
 
-	// printf("Magic # = %i\n", atoi(superblk->data.magic_number));
-	// printf("Root inode # = %i\n", atoi(superblk->data.root_inode));
-	// // First free inode, first free data block
+				printf("Magic # = %i\n", atoi(superblk->data.magic_number));
+				printf("Root inode # = %i\n", atoi(superblk->data.root_inode));
+				// First free inode, first free data block
+			}
+		}
+	}
+	else if (type == DISK_WRITE) {
+		printf("DID IT WRITE?\n");
+	}
+	else {
+		printf("Type: %i\n", type);
+		printf("TODO\n");
+	}
 
 	return;
 }
