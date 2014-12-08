@@ -7,31 +7,28 @@
 #include "block_defs.h"
 
 /* 
- * mkfs.h
+ * mkfs.c
  *       This module sets up the file system by setting up the disk and its superblock.
  */
 
 void make_fs(char* disksize) {
-	int written;
+	int written, magic_no;
 	superblock_t superblk;
 	// char* buffer = NULL;
-
-	//Create a new disk
-	// disk = malloc(sizeof(disk_t));
-	// if (disk == NULL) {
-	// 	fprintf(stderr, "ERROR: mkfs.c failed to malloc disk\n");
-	// }
-	// disk_create(disk, disk_name, (int) *disksize, disk_flags); //disk is in minithread.c???
-
 	
 	//Create the superblock
 	superblk = malloc(sizeof(struct superblock));
 	if (superblk == NULL) {
 		fprintf(stderr, "ERROR: mkfs.c failed to create disk's superblock\n");
 	}
-	memcpy(superblk->data.magic_number, "4411", 4); //CHECK!!!
+	magic_no = atoi("4411");
+	printf("%i\n", magic_no);
+	memcpy(superblk->data.magic_number, "4411", 4); // WHY ISNT THIS GETTING COPIED OVER properly?
 	memcpy(superblk->data.disk_size, disksize, 4);
-	// strcpy(superblk->data.root_inode, disksize);
+	memcpy(superblk->data.root_inode, "1", 4);
+
+	printf("Magic # = %i\n", atoi(superblk->data.magic_number));
+	printf("Root inode # = %i\n", atoi(superblk->data.root_inode));
 	// First free inode, first free data block
 
 
@@ -58,7 +55,6 @@ int main(int argc, char** argv) {
 	disk_size = atoi(argv[1]);
 
 	printf("%s\n", argv[1]);
-	// printf("size + 1 = %i\n", disk_size+1);
 
     minithread_system_initialize((proc_t) make_fs, (arg_t) argv[1]); 		//fix cast!?
     return -1;
