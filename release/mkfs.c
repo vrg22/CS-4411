@@ -16,8 +16,6 @@ void make_fs(char* disksize) {
 	superblock_t superblk;
 	// char* buffer = NULL;
 
-	printf("size + 1 = %i\n", disk_size+1);
-
 	//Create a new disk
 	// disk = malloc(sizeof(disk_t));
 	// if (disk == NULL) {
@@ -31,8 +29,10 @@ void make_fs(char* disksize) {
 	if (superblk == NULL) {
 		fprintf(stderr, "ERROR: mkfs.c failed to create disk's superblock\n");
 	}
+	memcpy(superblk->data.magic_number, "4411", 4); //CHECK!!!
 	memcpy(superblk->data.disk_size, disksize, 4);
 	// strcpy(superblk->data.root_inode, disksize);
+	// First free inode, first free data block
 
 
 	//Write superblock to disk
@@ -54,7 +54,11 @@ int main(int argc, char** argv) {
 	use_existing_disk = 0;
 	disk_name = "disk0";
 	disk_flags = DISK_READWRITE;
-	disk_size = (int) *argv[1];
+	// disk_size = (int) *argv[1];
+	disk_size = atoi(argv[1]);
+
+	printf("%s\n", argv[1]);
+	// printf("size + 1 = %i\n", disk_size+1);
 
     minithread_system_initialize((proc_t) make_fs, (arg_t) argv[1]); 		//fix cast!?
     return -1;
