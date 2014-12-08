@@ -773,15 +773,12 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 		printf("Has this read request been processed yet?->FIG OUT\n");
 		if (reply == DISK_REPLY_FAILED) {
 			printf("failed\n");
-		}
-		else if (reply == DISK_REPLY_ERROR) {
+		} else if (reply == DISK_REPLY_ERROR) {
 			printf("error\n");
-		}
-		else if (reply == DISK_REPLY_CRASHED) {
+		} else if (reply == DISK_REPLY_CRASHED) {
 			printf("crashed\n");
-		}
-		else { //REPLY_OK
-			if (blocknum == 0){
+		} else { // REPLY_OK
+			if (blocknum == 0) {
 				printf("Reading the superblock...\n");
 				superblk = (superblock_t) &block;
 
@@ -790,11 +787,9 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 				// First free inode, first free data block
 			}
 		}
-	}
-	else if (type == DISK_WRITE) {
+	} else if (type == DISK_WRITE) {
 		printf("DID IT WRITE?\n");
-	}
-	else {
+	} else {
 		printf("Type: %i\n", type);
 		printf("TODO\n");
 	}

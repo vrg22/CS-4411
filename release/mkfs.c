@@ -21,8 +21,10 @@ void make_fs(char* disksize) {
 	if (superblk == NULL) {
 		fprintf(stderr, "ERROR: mkfs.c failed to create disk's superblock\n");
 	}
+
 	magic_no = atoi("4411");
 	printf("%i\n", magic_no);
+
 	memcpy(superblk->data.magic_number, "4411", 4); // WHY ISNT THIS GETTING COPIED OVER properly?
 	memcpy(superblk->data.disk_size, disksize, 4);
 	memcpy(superblk->data.root_inode, "1", 4);
@@ -32,19 +34,18 @@ void make_fs(char* disksize) {
 	// First free inode, first free data block
 
 
-	//Write superblock to disk
+	// Write superblock to disk
 	written = disk_write_block(&disk, 0, (char*) superblk);
 
 	if (written == 0) { // Success
 		printf("SUCCESS!\n");
-	} 
-	else if (written == -1) { // Error
+	} else if (written == -1) { // Error
 		printf("ERROR!\n");
-	}
-	else { // -2, too many requests??
+	} else if (written == -2) { // Too many requests?
 		printf("-2: Too many requests?\n");
+	} else {
+		printf("Something went wrong with disk_write_block() return value")
 	}
-
 }
 
 int main(int argc, char** argv) {
