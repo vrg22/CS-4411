@@ -13,14 +13,19 @@
  */
 
 void make_fs(char* disksize) {
-	int written, magic_no, size;
+	int written, magic_no, size, first_data_block;
 	superblock_t superblk;
 	// char* buffer = NULL;
 
 	// Partition disk inode/data sections
 	size = unpack_unsigned_int(disksize);
-	/*pack_unsigned_int(root_inode, 1);
-	pack_unsigned_int(first_free_inode, 2);*/
+	first_data_block = size / 10;
+
+	// Check minimum disk size
+	if (size < 40) {
+		fprintf(stderr, "ERROR: make_fs() requested to create a disk with too small size\n");
+		return;
+	}
 	
 	// Create the superblock
 	superblk = malloc(sizeof(struct superblock));
@@ -31,12 +36,20 @@ void make_fs(char* disksize) {
 	magic_no = atoi("4411");
 	printf("%i\n", magic_no);
 
-	memcpy(superblk->data.magic_number, "4411", 4); // WHY ISNT THIS GETTING COPIED OVER properly?
-	memcpy(superblk->data.disk_size, disksize, 4);
-	memcpy(superblk->data.root_inode, "1", 4);
+	// memcpy(superblk->data.magic_number, "4411", 4); // WHY ISNT THIS GETTING COPIED OVER properly?
+	// memcpy(superblk->data.disk_size, disksize, 4);
+	// memcpy(superblk->data.root_inode, "1", 4);
+	pack_unsigned_int(superblk->data.magic_number, 4411);
+	pack_unsigned_int(superblk->data.disk_size, size);
+	pack_unsigned_int(superblk->data.first_data_block, first_data_block);
+	pack_unsigned_int(superblk->data.root_inode, 1);
+	pack_unsigned_int(superblk->data.first_free_inode, 2);
+	pack_unsigned_int(superblk->data.first_free_data_block, first_data_block);
 
-	printf("Magic # = %i\n", atoi(superblk->data.magic_number));
-	printf("Root inode # = %i\n", atoi(superblk->data.root_inode));
+	printf("Magic # = %i\n", unpack_unsigned_int(superblk->data.magic_number));
+	printf("Root inode # = %i\n", unpack_unsigned_int(superblk->data.root_inode));
+	// printf("Magic # = %i\n", atoi(superblk->data.magic_number));
+	// printf("Root inode # = %i\n", atoi(superblk->data.root_inode));
 	// First free inode, first free data block
 
 

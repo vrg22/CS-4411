@@ -11,7 +11,7 @@ typedef struct superblock {
 		struct {
 			char magic_number[4];
 			char disk_size[4];
-			char first_data_block[4];
+			char first_data_block[4]; // Used for determining inode block allocation limit
 
 			char root_inode[4];
 
