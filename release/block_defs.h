@@ -4,13 +4,14 @@
 #include "disk.h"
 
 
-#define TABLE_SIZE 100 //FIX THIS LATER!!!!!!!!
+#define TABLE_SIZE 11 //FIX THIS LATER!!!!!!!!
 
 typedef struct superblock {
 	union {
 		struct {
 			char magic_number[4];
 			char disk_size[4];
+			char first_data_block[4];
 
 			char root_inode[4];
 
@@ -39,8 +40,8 @@ typedef struct inode {
 typedef struct dir_data_block {
 	union {
 		struct {
-			char direct_entries[TABLE_SIZE][256];
-			char inode_ptrs[TABLE_SIZE][4];
+			char direct_entries[TABLE_SIZE][256]; // File name
+			char inode_ptrs[TABLE_SIZE][4]; // Block # of corresponding file's "main" inode
 		} data;
 
 		char padding[DISK_BLOCK_SIZE];

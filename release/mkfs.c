@@ -5,6 +5,7 @@
 
 #include "minithread.h"
 #include "block_defs.h"
+#include "miniheader.h"
 
 /* 
  * mkfs.c
@@ -12,11 +13,16 @@
  */
 
 void make_fs(char* disksize) {
-	int written, magic_no;
+	int written, magic_no, size;
 	superblock_t superblk;
 	// char* buffer = NULL;
+
+	// Partition disk inode/data sections
+	size = unpack_unsigned_int(disksize);
+	/*pack_unsigned_int(root_inode, 1);
+	pack_unsigned_int(first_free_inode, 2);*/
 	
-	//Create the superblock
+	// Create the superblock
 	superblk = malloc(sizeof(struct superblock));
 	if (superblk == NULL) {
 		fprintf(stderr, "ERROR: mkfs.c failed to create disk's superblock\n");
@@ -44,7 +50,7 @@ void make_fs(char* disksize) {
 	} else if (written == -2) { // Too many requests?
 		printf("-2: Too many requests?\n");
 	} else {
-		printf("Something went wrong with disk_write_block() return value")
+		printf("Something went wrong with disk_write_block() return value");
 	}
 }
 
