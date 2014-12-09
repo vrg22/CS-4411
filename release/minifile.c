@@ -1,5 +1,6 @@
 #include "minifile.h"
 #include "disk.h"
+#include "synch.h"
 
 /*
  * struct minifile:

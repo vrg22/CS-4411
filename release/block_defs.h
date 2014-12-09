@@ -17,6 +17,9 @@ typedef struct superblock {
 
 			char first_free_inode[4];
 			char first_free_data_block[4];
+
+			char free_inodes[4];
+			char free_blocks[4];
 		} data;
 
 		char padding[DISK_BLOCK_SIZE];

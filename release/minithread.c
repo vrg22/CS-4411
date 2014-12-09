@@ -784,8 +784,6 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 
 				printf("Magic # = %i\n", unpack_unsigned_int(superblk->data.magic_number));
 				printf("Root inode # = %i\n", unpack_unsigned_int(superblk->data.root_inode));
-				// printf("Magic # = %i\n", atoi(superblk->data.magic_number));
-				// printf("Root inode # = %i\n", atoi(superblk->data.root_inode));
 				// First free inode, first free data block
 			}
 		}
