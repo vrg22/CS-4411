@@ -11,7 +11,7 @@ typedef struct superblock {
 		struct {
 			char magic_number[4];
 			char disk_size[4];
-			char first_data_block[4]; // Used for determining inode block allocation limit
+			// char first_data_block[4]; // Used for determining inode block allocation limit
 
 			char root_inode[4];
 
@@ -19,7 +19,7 @@ typedef struct superblock {
 			char first_free_data_block[4];
 
 			char free_inodes[4];
-			char free_blocks[4];
+			char free_data_blocks[4];
 		} data;
 
 		char padding[DISK_BLOCK_SIZE];
@@ -34,6 +34,8 @@ typedef struct inode {
 
 			char direct_ptrs[TABLE_SIZE][4];
 			char indirect_ptr[4];
+
+			char next_free_inode[4]; // Block # of next free inode; 0 if this inode is not free
 		} data;
 
 		char padding[DISK_BLOCK_SIZE];
@@ -53,7 +55,9 @@ typedef struct dir_data_block {
 
 typedef struct free_data_block {
 	union {
-		char next_free_block[4];
+		struct {
+			char next_free_block[4];
+		} data;
 
 		char padding[DISK_BLOCK_SIZE];
 	};

@@ -28,7 +28,7 @@ void make_fs(char* disksize) {
 	fprintf(stderr, "%i\n", size);
 
 	// Check minimum disk size
-	if (size < 40) {
+	if (size < 32) {
 		fprintf(stderr, "ERROR: make_fs() requested to create a disk with too small size\n");
 		return;
 	}
@@ -45,10 +45,12 @@ void make_fs(char* disksize) {
 
 	pack_unsigned_int(superblk->data.magic_number, 4411);
 	pack_unsigned_int(superblk->data.disk_size, size);
-	pack_unsigned_int(superblk->data.first_data_block, first_data_block);
+	// pack_unsigned_int(superblk->data.first_data_block, first_data_block);
 	pack_unsigned_int(superblk->data.root_inode, 1);
 	pack_unsigned_int(superblk->data.first_free_inode, 2);
 	pack_unsigned_int(superblk->data.first_free_data_block, first_data_block);
+	pack_unsigned_int(superblk->data.free_inodes, first_data_block - 2);
+	pack_unsigned_int(superblk->data.free_blocks, size - first_data_block);
 
 	printf("Magic # = %i\n", unpack_unsigned_int(superblk->data.magic_number));
 	printf("Root inode # = %i\n", unpack_unsigned_int(superblk->data.root_inode));
@@ -74,6 +76,13 @@ void make_fs(char* disksize) {
 			fprintf(stderr, "ERROR: mkfs.c failed to create new inode\n");
 		}
 
+		// Set next_free_inode
+		if (i + 1 < first_data_block) {
+			pack_unsigned_int(ind->data.next_free_inode, i + 1);
+		} else {
+			pack_unsigned_int(ind->data.next_free_inode, 0); // Last inode
+		}
+
 		// Write inode to disk
 		written = disk_write_block(&disk, i, (char*) ind);
 
@@ -94,6 +103,11 @@ void make_fs(char* disksize) {
 		fdb = malloc(sizeof(struct free_data_block));
 		if (fdb == NULL) {
 			fprintf(stderr, "ERROR: mkfs.c failed to create new free_data_block\n");
+		}
+
+		// Set next_free_block
+		if (i + 1 < size) {
+			pack_unsigned_int(fdb->data.next_free_block, i + 1);
 		}
 
 		// Write db to disk
@@ -118,7 +132,6 @@ int main(int argc, char** argv) {
 	use_existing_disk = 0;
 	disk_name = "disk0";
 	disk_flags = DISK_READWRITE;
-	// disk_size = (int) *argv[1];
 	disk_size = atoi(argv[1]);
 
 	printf("%s\n", argv[1]);

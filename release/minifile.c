@@ -9,8 +9,7 @@
  */
 
 struct minifile {
-  /* add members here */
-  int dummy;
+	int open_handles;
 };
 
 minifile_t minifile_creat(char *filename) {
