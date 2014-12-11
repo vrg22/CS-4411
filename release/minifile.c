@@ -254,7 +254,7 @@ minifile_t minifile_find(char *filename) {
 
 	// Check for invalid arguments
 	if (filename == NULL) {
-		fprintf(stderr, "ERROR: minifile_creat() was passed a NULL filename pointer\n");
+		fprintf(stderr, "ERROR: minifile_find() was passed a NULL filename pointer\n");
 		return NULL;
 	}
 
@@ -264,7 +264,7 @@ minifile_t minifile_find(char *filename) {
 
 	// Get root inode
 	if ((error = disk_read_block(&disk, dir, block_buffer)) < 0) {
-		fprintf(stderr, "ERROR: minifile_creat() failed to open current directory with error %i\n", error);
+		fprintf(stderr, "ERROR: minifile_find() failed to open current directory with error %i\n", error);
 		return NULL;
 	}
 	curr_inode = (inode_t) block_buffer;
@@ -277,11 +277,11 @@ minifile_t minifile_find(char *filename) {
 	while (db_num < TABLE_SIZE && entry < total_entries && file_not_found) { // Search through direct data blocks
 		// Get next directory data block from root inode direct ptr
 		if ((block_num = unpack_unsigned_int(curr_inode->data.direct_ptrs[db_num])) == 0) {
-			fprintf(stderr, "ERROR: minifile_creat() got block # of 0 for dir_db within indirect block with error %i\n", error);
+			fprintf(stderr, "ERROR: minifile_find() got block # of 0 for dir_db within indirect block with error %i\n", error);
 			return NULL;
 		}
 		if ((error = disk_read_block(&disk, block_num, block_buffer)) < 0) {
-			fprintf(stderr, "ERROR: minifile_creat() failed to open dir_db with error %i\n", error);
+			fprintf(stderr, "ERROR: minifile_find() failed to open dir_db with error %i\n", error);
 			return NULL;
 		}
 		dir_db = (dir_data_block_t) block_buffer;
@@ -303,7 +303,7 @@ minifile_t minifile_find(char *filename) {
 	while (block_num != 0 && entry < total_entries && file_not_found) { // Search in indirect block
 		// Get indirect block
 		if ((error = disk_read_block(&disk, block_num, block_buffer)) < 0) {
-			fprintf(stderr, "ERROR: minifile_creat() failed to open indirect block with error %i\n", error);
+			fprintf(stderr, "ERROR: minifile_find() failed to open indirect block with error %i\n", error);
 			return NULL;
 		}
 		in = (indirect_block_t) block_buffer;
@@ -312,11 +312,11 @@ minifile_t minifile_find(char *filename) {
 		while (db_num < TABLE_SIZE && entry < total_entries && file_not_found) { // Search through direct data blocks inside indirect block
 			// Get next directory data block from root inode direct ptr
 			if ((block_num = unpack_unsigned_int(curr_inode->data.direct_ptrs[db_num])) == 0) {
-				fprintf(stderr, "ERROR: minifile_creat() got block # of 0 for dir_db within indirect block with error %i\n", error);
+				fprintf(stderr, "ERROR: minifile_find() got block # of 0 for dir_db within indirect block with error %i\n", error);
 				return NULL;
 			}
 			if ((error = disk_read_block(&disk, block_num, block_buffer)) < 0) {
-				fprintf(stderr, "ERROR: minifile_creat() failed to open dir_db within indirect block with error %i\n", error);
+				fprintf(stderr, "ERROR: minifile_find() failed to open dir_db within indirect block with error %i\n", error);
 				return NULL;
 			}
 			dir_db = (dir_data_block_t) block_buffer;
@@ -342,7 +342,7 @@ minifile_t minifile_find(char *filename) {
 	if (file_not_found) {
 		// Create new file
 		if ((file = malloc(sizeof(struct minifile))) == NULL) {
-			fprintf(stderr, "ERROR: minifile_creat() failed to create new minifile\n");
+			fprintf(stderr, "ERROR: minifile_find() failed to create new minifile\n");
 			return NULL;
 		}
 
