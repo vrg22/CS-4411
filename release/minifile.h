@@ -120,5 +120,7 @@ char* minifile_pwd(void);
 
 minifile_t minifile_find(char *filename);
 
+int get_block_ptr(char *path);
+
 
 #endif /* __MINIFILE_H__ */

@@ -68,7 +68,7 @@ minithread_t minithread_fork(proc_t proc, arg_t arg) {
 
 	// Set thread's working directory as root directory of disk
 	if ((error = disk_read_block(&disk, 0, block_buffer)) < 0) { // Read superblock
-		fprintf(stderr, "ERROR: minifile_creat() failed to open current directory with error %i\n", error);
+		fprintf(stderr, "ERROR: minithread_fork() failed to open superblock with error %i\n", error);
 		return NULL;
 	}
 	sblock = (superblock_t) block_buffer;
