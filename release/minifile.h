@@ -118,4 +118,7 @@ char **minifile_ls(char *path);
 char* minifile_pwd(void);
 
 
+minifile_t minifile_find(char *filename);
+
+
 #endif /* __MINIFILE_H__ */
