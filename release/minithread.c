@@ -52,6 +52,9 @@ disk_t disk;
 
 minithread_t minithread_fork(proc_t proc, arg_t arg) {
 	minithread_t tcb = minithread_create(proc, arg);
+	int error;
+	char block_buffer[DISK_BLOCK_SIZE];
+	superblock_t sblock;
 
 	// Check for argument errors
 	if (tcb == NULL) {
@@ -62,6 +65,14 @@ minithread_t minithread_fork(proc_t proc, arg_t arg) {
 		fprintf(stderr, "ERROR: minithread_fork() passed a NULL process pointer\n");
 		return NULL;
 	}
+
+	// Set thread's working directory as root directory of disk
+	if ((error = disk_read_block(&disk, 0, block_buffer)) < 0) { // Read superblock
+		fprintf(stderr, "ERROR: minifile_creat() failed to open current directory with error %i\n", error);
+		return NULL;
+	}
+	sblock = (superblock_t) block_buffer;
+	tcb->wd = unpack_unsigned_int(sblock->data.root_inode);
 
 	minithread_start(tcb);
 
@@ -256,9 +267,6 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	// Create zombie queue for dead threads
 	if (zombie_queue == NULL) zombie_queue = queue_new();
 
-	// Create and schedule first minithread                 
-	current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
-
 	/* Set up clock and alarms */
 	minithread_clock_init(clk_period, (interrupt_handler_t) &clock_handler);
 	alarm_queue = queue_new();
@@ -273,6 +281,9 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	// Initialize Disk
 	disk_initialize(&disk);
 	install_disk_handler((interrupt_handler_t) disk_handler);
+
+	// Create and schedule first minithread                 
+	current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
 
 	set_interrupt_level(ENABLED);
 

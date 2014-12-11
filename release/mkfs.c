@@ -50,7 +50,7 @@ void make_fs(char* disksize) {
 	pack_unsigned_int(superblk->data.first_free_inode, 2);
 	pack_unsigned_int(superblk->data.first_free_data_block, first_data_block);
 	pack_unsigned_int(superblk->data.free_inodes, first_data_block - 2);
-	pack_unsigned_int(superblk->data.free_blocks, size - first_data_block);
+	pack_unsigned_int(superblk->data.free_data_blocks, size - first_data_block);
 
 	printf("Magic # = %i\n", unpack_unsigned_int(superblk->data.magic_number));
 	printf("Root inode # = %i\n", unpack_unsigned_int(superblk->data.root_inode));

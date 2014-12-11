@@ -41,6 +41,8 @@ struct minithread {
 
 	proc_t func;
 	arg_t arg;
+
+	int wd; // Working directory of minithread
 };
 
 /* CLOCK VARIABLES */

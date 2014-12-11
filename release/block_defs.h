@@ -53,6 +53,17 @@ typedef struct dir_data_block {
 	};
 } *dir_data_block_t;
 
+typedef struct indirect_block {
+	union {
+		struct {
+			char direct_ptrs[TABLE_SIZE][4];
+			char indirect_ptr[4];
+		} data;
+
+		char padding[DISK_BLOCK_SIZE];
+	};
+} *indirect_block_t;
+
 typedef struct free_data_block {
 	union {
 		struct {

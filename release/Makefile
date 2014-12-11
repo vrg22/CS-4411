@@ -43,6 +43,7 @@ OBJ =                              \
     minisocket.o                   \
     miniroute.o                    \
     multilevel_queue.o             \
+    minifile.o             \
     network.o                      			   
 
 %: %.o start.o end.o $(OBJ) $(SYSTEMOBJ)
