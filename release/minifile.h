@@ -26,6 +26,35 @@ extern mmbm_t requests; // Map for current requests
 extern semaphore_t mmbm_sema; // Sema for getting entry in mmbm_t
 extern semaphore_t mmbm_mutex; // Mutex for mmbm_t
 
+/*
+ * struct minifile:
+ *     This is the structure that keeps the information about 
+ *     the opened file like the position of the cursor, etc.
+ */
+
+struct minifile {
+	char name[256];
+	file_mode_t mode;
+	int inode_num; // Block # of inode
+	int cursor;
+	semaphore_t req_done; // Make sure disk request completes
+	// int dirty; // ?????? 1 if contents differ from that is on disk, 0 if no changes have been made
+
+	// char* read_buffer; //????
+	// char* write_buffer; //?????
+};
+
+struct file_description {
+	int inode_num; // Redundant (given from current index within file_description_table)
+	int open_handles; // Number of open handles to this inode
+	semaphore_t mutex; // Used only for reading & writing this file's inode or its data blocks
+};
+
+struct mutex_mem_buffer_map {
+	char buff_addr[MAX_PENDING_DISK_REQUESTS][sizeof(char*)];
+	char sema_addr[MAX_PENDING_DISK_REQUESTS][sizeof(semaphore_t*)];
+};
+
 /* 
  * General requiremens:
  *     If filenames and/or dirnames begin with a "/" they are absolute
