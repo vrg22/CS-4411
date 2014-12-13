@@ -282,6 +282,20 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	disk_initialize(&disk);
 	install_disk_handler((interrupt_handler_t) disk_handler);
 
+	// Create requests table
+	requests = malloc(sizeof(struct mutex_mem_buffer_map));
+	if (requests == NULL) {
+		fprintf(stderr, "ERROR: minithread_system_initialize() failed to allocate mmbm_t\n");
+		return 0;
+	}
+	//Init mmbm_sema to correct size
+	mmbm_sema = semaphore_create(); 
+	semaphore_initialize(mmbm_sema, MAX_PENDING_DISK_REQUESTS);
+
+	//Init mmbm mutex
+	mmbm_mutex = semaphore_create(); 
+	semaphore_initialize(mmbm_mutex, 1);
+
 	// Create and schedule first minithread                 
 	current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
 
@@ -799,8 +813,17 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 			}
 		}
 	} else if (type == DISK_WRITE) {
-		printf("DID IT WRITE?\n");
+		// printf("DID IT WRITE?\n");
 		// decide if reply is OK, etc.
+		if (reply == DISK_REPLY_FAILED) {
+			printf("failed\n");
+		} else if (reply == DISK_REPLY_ERROR) {
+			printf("error\n");
+		} else if (reply == DISK_REPLY_CRASHED) {
+			printf("crashed\n");
+		} else { // REPLY_OK
+			printf("wrote bitch!@\n");
+		}
 	} else {
 		printf("Type: %i\n", type);
 		printf("TODO\n");

@@ -12,53 +12,55 @@
  */
 
 struct minifile {
+	char name[256];
 	file_mode_t mode;
-	semaphore_t mutex;
-	int open_handles;
+	int inode_num; // Block # of inode
+	int cursor;
+	semaphore_t req_done; // Make sure disk request completes
+	// int dirty; // ?????? 1 if contents differ from that is on disk, 0 if no changes have been made
+
+	// char* read_buffer; //????
+	// char* write_buffer; //?????
 };
 
-minifile_t* files; // All possible files indexed by corresponding inode
+struct file_description {
+	int inode_num; // Redundant (given from current index within file_description_table)
+	int open_handles; // Number of open handles to this inode
+	semaphore_t mutex; // Used only for reading & writing this file's inode or its data blocks
+};
+
+struct mutex_mem_buffer_map {
+	char buff_addr[MAX_PENDING_DISK_REQUESTS][sizeof(char*)];
+	char sema_addr[MAX_PENDING_DISK_REQUESTS][sizeof(semaphore_t*)];
+};
+
+semaphore_t metadata_mutex; // Mutex for metadata accesses spanning multiple inodes (creating, deleting files & directories that require directory inodes to change)
+file_description_t* file_description_table;
+semaphore_t fdt_mutex; // Mutex for file_description_table
+mmbm_t requests; // Map for current requests
+semaphore_t mmbm_sema; // Sema for getting entry in mmbm_t
+semaphore_t mmbm_mutex; // Mutex for mmbm_t
+
+// minifile_t* files; // All possible files indexed by corresponding inode
 
 minifile_t minifile_creat(char *filename) {
-	minithread_t thread;
-	minifile_t file;
-	int dir, block_num;
-	char block_buffer[DISK_BLOCK_SIZE];
-	inode_t curr_inode;
-	dir_data_block_t dir_db;
-	indirect_block_t in;
-
 	// Check for invalid arguments
 	if (filename == NULL) {
 		fprintf(stderr, "ERROR: minifile_creat() was passed a NULL filename pointer\n");
 		return NULL;
 	}
 
-	// Get disk and working directory
-	thread = minithread_self();
-	dir = thread->wd;
-
-	if ((block_num = minifile_find(filename, dir)) < 0) { // No existing file exists
-		// Create new file
-		if ((file = malloc(sizeof(struct minifile))) == NULL) {
-			fprintf(stderr, "ERROR: minifile_creat() failed to create new minifile\n");
-			return NULL;
-		}
-
-		// Create new inode
-
-		// Add inode to current directory & update directory inode
-	} else { // File already exists
-		// Use existing file IF NOT DIRECTORY
-	}
-
-	
-
-	return file;
+	return minifile_open(filename, "w");
 }
 
 minifile_t minifile_open(char *filename, char *mode) {
 	minifile_t file;
+	minithread_t thread;
+	int dir, block_num;
+	// char block_buffer[DISK_BLOCK_SIZE];
+	// inode_t curr_inode;
+	// dir_data_block_t dir_db;
+	// indirect_block_t in;
 	int plus = 0;
 
 	// Check for invalid arguments
@@ -71,8 +73,47 @@ minifile_t minifile_open(char *filename, char *mode) {
 		return NULL;
 	}
 
-	// Open file
-	file = minifile_find(filename);
+	// Check for unset file_description_table
+	if (file_description_table == NULL) {
+		file_description_table = malloc(disk_size / 10 * sizeof(file_description_t));
+		if (file_description_table == NULL) {
+			fprintf(stderr, "ERROR: minifile_open() failed to allocate file_description_table\n");
+			return NULL;
+		}
+	}
+
+	// Get disk and working directory
+	thread = minithread_self();
+	dir = thread->wd;
+
+	// Attempt to open file
+	if ((block_num = minifile_find(filename, dir)) < 0) { // No existing file exists
+
+		// Create new inode
+
+		// Add inode to current directory & update directory inode
+	} else { // File already exists
+		if (file found is a directory) {
+			error & fail;
+		}
+	}
+
+	// Update (or create) file description table entry
+	semaphore_P(fdt_mutex);
+	if (file_description_table[block_num] == NULL) {
+		create file description table element;
+		add element to table;
+	}
+	file_description_table[block_num]->open_handles++;
+	semaphore_V(fdt_mutex);
+
+	// Create minifile
+	if ((file = malloc(sizeof(struct minifile))) == NULL) {
+		fprintf(stderr, "ERROR: minifile_open() failed to create new minifile\n");
+		return NULL;
+	}
+	file->name = filename; // COPY CORRECTLY!!!
+	file->inode_num = block_num; // Block # of inode
 
 	// Set file mode type - must consider 'b' intermixed with chars
 	if (*mode == 'b') {
@@ -93,8 +134,15 @@ minifile_t minifile_open(char *filename, char *mode) {
 		fprintf(stderr, "ERROR: minifile_open() called with invalid mode type\n");
 		return NULL;
 	}
+	// int cursor;
 
-	return NULL;
+
+
+	// semaphore_P(file_description_table[block_num]->mutex);
+	// read file into read buffer of minifile
+	// semaphore_V(file_description_table[block_num]->mutex)
+
+	return file;
 }
 
 int minifile_read(minifile_t file, char *data, int maxlen) {
@@ -156,11 +204,83 @@ int minifile_rmdir(char *dirname) {
 }
 
 int minifile_stat(char *path) {
-	return 0;
+	int block_num, error;
+	char block_buffer[DISK_BLOCK_SIZE];
+	inode_t ind;
+
+	block_num = get_block_ptr(path); // Should point to the file's inode (guaranteed to be inode, hopefully)
+	
+	if (block_num < 0) { // Invalid path
+		return -1;
+	}
+
+	// Lock fdt entry from other threads accessing this file while we read
+	semaphore_P(fdt_mutex);
+	semaphore_P(file_description_table[block_num]->mutex);
+	semaphore_V(fdt_mutex);
+	
+	if ((error = minifile_read_block(&disk, block_num, block_buffer)) < 0) {
+		fprintf(stderr, "ERROR: minifile_stat() failed to read block %i\n", error);
+		return -1;
+	}
+
+	// Unlock fdt entry
+	semaphore_P(fdt_mutex);
+	semaphore_V(file_description_table[block_num]->mutex);
+	semaphore_V(fdt_mutex);
+
+	ind = (inode_t) block_buffer;
+
+	if (ind->inode_type == DIR) {
+		return -2;
+	} else if (ind->inode_type == FIL) {
+		return unpack_unsigned_int(ind->size);
+	} else {
+		fprintf(stderr, "ERROR: minifile_stat() got inode of unknown type\n");
+		return -1;
+	}
 } 
 
 int minifile_cd(char *path) {
-	return 0;
+	int block_num, error;
+	char block_buffer[DISK_BLOCK_SIZE];
+	inode_t ind;
+	minithread_t thread;
+
+	block_num = get_block_ptr(path); // Should point to the file's inode (guaranteed to be inode, hopefully)
+	
+	if (block_num < 0) { // Invalid path
+		return -1;
+	}
+
+	// Lock fdt entry from other threads accessing this file while we read
+	semaphore_P(fdt_mutex);
+	semaphore_P(file_description_table[block_num]->mutex);
+	semaphore_V(fdt_mutex);
+	
+	if ((error = minifile_read_block(&disk, block_num, block_buffer)) < 0) {
+		fprintf(stderr, "ERROR: minifile_cd() failed to read block %i\n", error);
+		return -1;
+	}
+
+	// Unlock fdt entry
+	semaphore_P(fdt_mutex);
+	semaphore_V(file_description_table[block_num]->mutex);
+	semaphore_V(fdt_mutex);
+
+	ind = (inode_t) block_buffer;
+
+	if (ind->inode_type == DIR) {
+		thread = minithread_self();
+		thread->wd = block_num;
+		return 0;
+	} else if (ind->inode_type == FIL) {
+		fprintf(stderr, "ERROR: minifile_cd() tried to access a non-directory\n");
+		return -1;
+	} else {
+		fprintf(stderr, "ERROR: minifile_cd() got inode of unknown type\n");
+		return -1;
+	}
 }
 
 char **minifile_ls(char *path) {
@@ -299,7 +419,7 @@ int get_block_ptr(char *path) {
 	file_name_chars = 0;
 	while (path[i]) {
 		if (path[i] == '/') {
-			curr_block = minifile_find(file)
+			curr_block = minifile_find(file, curr_block);
 			file_name_chars = 0;
 		} else {
 			if (file_name_chars > 256) {
@@ -311,4 +431,96 @@ int get_block_ptr(char *path) {
 		}
 		i++;
 	}
+
+	return curr_block;
+}
+
+
+int minifile_read_block(disk_t* disk, int blocknum, char* buffer) {
+	semaphore_t sema;
+	int status, entry;
+
+	sema = semaphore_create(); 
+	semaphore_initialize(sema, 0);
+
+	// Block if not enough space in requests table
+	semaphore_P(mmbm_sema);
+	semaphore_P(mmbm_mutex);
+
+	// Add mapping to table
+	entry = 0;
+	while (entry < MAX_PENDING_DISK_REQUESTS && requests->buff_addr[entry]) {
+		entry++;
+	}
+	if (entry = MAX_PENDING_DISK_REQUESTS) {
+		fprintf(stderr, "minifile_read_block ERROR\n");
+		return -2;
+	}
+
+	requests->buff_addr[entry] = buffer; // COPY addr later
+	requests->sema_addr[entry] = &sema; // COPY addr later
+	semaphore_V(mmbm_mutex);
+
+	status = disk_read_block(disk, blocknum, buffer);
+	if (status < 0) {
+		return status;
+	}
+	semaphore_P(sema);
+	free(sema);
+
+	// Know got disk reply
+	semaphore_P(mmbm_mutex);
+	requests->buff_addr[entry] = NULL; // COPY addr later
+	requests->sema_addr[entry] = NULL;
+	
+	semaphore_V(mmbm_mutex);
+	semaphore_V(mmbm_sema);
+
+	return status;
+}
+
+/*
+ * Encapsulates disk writes to also update map table, etc.
+ */
+int minifile_write_block(disk_t* disk, int blocknum, char* buffer){
+	semaphore_t sema;
+	int status, entry;
+
+	sema = semaphore_create(); 
+	semaphore_initialize(sema, 0);
+
+	// Block if not enough space in requests table
+	semaphore_P(mmbm_sema);
+	semaphore_P(mmbm_mutex);
+
+	// Add mapping to table
+	entry = 0;
+	while (entry < MAX_PENDING_DISK_REQUESTS && requests->buff_addr[entry]) {
+		entry++;
+	}
+	if (entry = MAX_PENDING_DISK_REQUESTS) {
+		fprintf(stderr, "minifile_write_block ERROR\n");
+		return -2;
+	}
+
+	requests->buff_addr[entry] = buffer; // COPY addr later
+	requests->sema_addr[entry] = &sema; // COPY addr later
+	semaphore_V(mmbm_mutex);
+
+	status = disk_write_block(disk, blocknum, buffer);
+	if (status < 0) {
+		return status;
+	}
+	semaphore_P(sema);
+	free(sema);
+
+	// Know got disk reply
+	semaphore_P(mmbm_mutex);
+	requests->buff_addr[entry] = NULL; // COPY addr later
+	requests->sema_addr[entry] = NULL;
+	
+	semaphore_V(mmbm_mutex);
+	semaphore_V(mmbm_sema);
+
+	return status;
 }

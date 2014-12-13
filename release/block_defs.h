@@ -6,6 +6,8 @@
 
 #define TABLE_SIZE 11 //FIX THIS LATER!!!!!!!!
 
+typedef enum {FIL, DIR} inode_type_t;
+
 typedef struct superblock {
 	union {
 		struct {

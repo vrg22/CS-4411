@@ -5,6 +5,7 @@
 
 #include "minithread.h"
 #include "block_defs.h"
+#include <fcntl.h>
 
 /* 
  * fsck.c
@@ -12,7 +13,7 @@
  */
 
 void check_fs(char* diskname) {
-	int read; //initialized;
+	/*int read; //initialized;
 	char superblk[DISK_BLOCK_SIZE];
 	//superblock_t superblk = NULL;
 
@@ -35,7 +36,10 @@ void check_fs(char* diskname) {
 	else { // -2, too many requests??
 		printf("-2: Too many requests? fsck\n");
 		return;
-	}
+	}*/
+
+	printf("%i\n", open("disk0", O_RDONLY));
+	printf("%i\n", open("disk0", O_RDONLY));
 }
 
 int main(int argc, char** argv) {

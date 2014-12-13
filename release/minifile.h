@@ -2,6 +2,7 @@
 #define __MINIFILE_H__
 
 #include "defs.h"
+#include "synch.h"
 #include "block_defs.h"
 
 /*
@@ -14,9 +15,16 @@
  */
 
 typedef struct minifile* minifile_t;
+typedef struct file_description* file_description_t;
+typedef struct mutex_mem_buffer_map* mmbm_t;
 
 typedef enum {R, RP, W, WP, A, AP} file_mode_t;
 
+extern semaphore_t metadata_mutex; // Mutex for metadata accesses spanning multiple inodes
+extern file_description_t* file_description_table;
+extern mmbm_t requests; // Map for current requests
+extern semaphore_t mmbm_sema; // Sema for getting entry in mmbm_t
+extern semaphore_t mmbm_mutex; // Mutex for mmbm_t
 
 /* 
  * General requiremens:
@@ -117,10 +125,26 @@ char **minifile_ls(char *path);
  */
 char* minifile_pwd(void);
 
+/*
+ * Searches inode of block # = inode_block_num for a file named filename.
+ * Returns the block number of the resulting file, -1 if file not found, -2 if inode_block_num corresponds to non-inode block
+ */
+int minifile_find(char *filename, int inode_block_num);
 
-minifile_t minifile_find(char *filename);
-
+/*
+ * Finds the block number of the inode corresponding to the file specified in path (uses minifile_find() iteratively on each directory)
+ * Returns the block number of the resulting file/directory, -1 if invalid path
+ */
 int get_block_ptr(char *path);
 
+/*
+ * Encapsulates disk reads to also update map table, etc.
+ */
+int minifile_read_block(disk_t* disk, int blocknum, char* buffer);
+
+/*
+ * Encapsulates disk writes to also update map table, etc.
+ */
+int minifile_write_block(disk_t* disk, int blocknum, char* buffer);
 
 #endif /* __MINIFILE_H__ */
