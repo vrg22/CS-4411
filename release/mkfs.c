@@ -126,6 +126,8 @@ void make_fs(char* disksize) {
 	if (written == 0) { // Success
 		fprintf(stderr, "SUCCESS!\n");
 	}
+
+	while (1);
 }
 
 int main(int argc, char** argv) {

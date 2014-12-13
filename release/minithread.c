@@ -52,9 +52,9 @@ disk_t disk;
 
 minithread_t minithread_fork(proc_t proc, arg_t arg) {
 	minithread_t tcb = minithread_create(proc, arg);
-	int error;
+	/*int error;
 	char block_buffer[DISK_BLOCK_SIZE];
-	superblock_t sblock;
+	superblock_t sblock;*/
 
 	// Check for argument errors
 	if (tcb == NULL) {
@@ -66,13 +66,13 @@ minithread_t minithread_fork(proc_t proc, arg_t arg) {
 		return NULL;
 	}
 
-	// Set thread's working directory as root directory of disk
+	/*// Set thread's working directory as root directory of disk
 	if ((error = disk_read_block(&disk, 0, block_buffer)) < 0) { // Read superblock
 		fprintf(stderr, "ERROR: minithread_fork() failed to open superblock with error %i\n", error);
 		return NULL;
 	}
 	sblock = (superblock_t) block_buffer;
-	tcb->wd = unpack_unsigned_int(sblock->data.root_inode);
+	tcb->wd = unpack_unsigned_int(sblock->data.root_inode);*/
 
 	minithread_start(tcb);
 
@@ -756,7 +756,7 @@ void remove_cache_entry(cache_elem_t entry) {
 }
 
 void disk_handler(disk_interrupt_arg_t* arg) {
-	disk_t* disk_ptr;
+	// disk_t* disk_ptr;
 	disk_request_t request;
 	disk_reply_t reply;
 	disk_request_type_t type; // CHECK: Not getting set!
@@ -767,16 +767,16 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 	printf("\nIN DISK HANDLER!\n");
 
 	// Identify arg type
-	disk_ptr = arg->disk;
+	// disk_ptr = arg->disk;
 	request = arg->request;
 	reply = arg->reply;
 	type = request.type;
 	blocknum = request.blocknum;
 	block = request.buffer;
 
-	printf("Name of your disk: %s\n", disk_name);	
+	/*printf("Name of your disk: %s\n", disk_name);	
 	printf("Size of disk (in blocks): %i\n", disk_ptr->layout.size);
-	printf("This arg's disk reply: %i\n", reply);
+	printf("This arg's disk reply: %i\n", reply);*/
 
 	// Decide type of reply/request
 	if (type == DISK_READ) {
@@ -791,7 +791,7 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 		} else { // REPLY_OK
 			if (blocknum == 0) {
 				printf("Reading the superblock...\n");
-				superblk = (superblock_t) &block;
+				superblk = (superblock_t) block;
 
 				printf("Magic # = %i\n", unpack_unsigned_int(superblk->data.magic_number));
 				printf("Root inode # = %i\n", unpack_unsigned_int(superblk->data.root_inode));
@@ -800,6 +800,7 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 		}
 	} else if (type == DISK_WRITE) {
 		printf("DID IT WRITE?\n");
+		// decide if reply is OK, etc.
 	} else {
 		printf("Type: %i\n", type);
 		printf("TODO\n");

@@ -13,11 +13,12 @@
 
 void check_fs(char* diskname) {
 	int read; //initialized;
-	superblock_t superblk = NULL;
+	char superblk[DISK_BLOCK_SIZE];
+	//superblock_t superblk = NULL;
 
 	// Read superblock from disk
-	read = disk_read_block(&disk, 0, (char*) superblk);
-	if (superblk == NULL){
+	read = disk_read_block(&disk, 0, superblk);
+	if (read < 0){
 		printf("NO REAL SUCCESS! - what to do here?\n");
 		return;
 	}
@@ -25,14 +26,14 @@ void check_fs(char* diskname) {
 
 
 	if (read == 0) { // Success
-		printf("SUCCESS!\n");
+		printf("SUCCESS! fsck\n");
 	} 
 	else if (read == -1) { // Error
-		printf("ERROR!\n");
+		printf("ERROR! fsck\n");
 		return;
 	}
 	else { // -2, too many requests??
-		printf("-2: Too many requests?\n");
+		printf("-2: Too many requests? fsck\n");
 		return;
 	}
 }

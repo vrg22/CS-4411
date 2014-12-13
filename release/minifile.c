@@ -13,8 +13,11 @@
 
 struct minifile {
 	file_mode_t mode;
+	semaphore_t mutex;
 	int open_handles;
 };
+
+minifile_t* files; // All possible files indexed by corresponding inode
 
 minifile_t minifile_creat(char *filename) {
 	minithread_t thread;
@@ -48,6 +51,8 @@ minifile_t minifile_creat(char *filename) {
 	} else { // File already exists
 		// Use existing file IF NOT DIRECTORY
 	}
+
+	
 
 	return file;
 }
