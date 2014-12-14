@@ -4,7 +4,7 @@
 #include "synch.h"
 #include "minithread.h"
 #include "miniheader.h"
-#include "queue.h"
+#include <string.h>
 
 
 semaphore_t metadata_mutex; // Mutex for metadata accesses spanning multiple inodes (creating, deleting files & directories that require directory inodes to change)
@@ -212,13 +212,13 @@ int minifile_mkdir(char *dirname) {
 		pack_unsigned_int(superblk->data.free_inodes, free_inodes - 1);
 	}
 
-	dir_inode = unpack_unsigned_int(superblk->data.next_free_inode); // inode to store new directory
+	dir_inode = unpack_unsigned_int(superblk->data.first_free_inode); // inode to store new directory
 	if ((error = minifile_read_block(&disk, dir_inode, target_buffer)) < 0) {
 		fprintf(stderr, "ERROR: minifile_mkdir() failed to read block %i\n", error);
 		semaphore_V(file_description_table[0]->mutex);
 		return -1;
 	}
-	ddb_num = unpack_unsigned_int(superblk->data.next_free_data_block); // inode to store new directory
+	ddb_num = unpack_unsigned_int(superblk->data.first_free_data_block); // inode to store new directory
 	if ((error = minifile_read_block(&disk, ddb_num, ddb_buffer)) < 0) {
 		fprintf(stderr, "ERROR: minifile_mkdir() failed to read block %i\n", error);
 		semaphore_V(file_description_table[0]->mutex);
@@ -228,8 +228,8 @@ int minifile_mkdir(char *dirname) {
 	fdb = (free_data_block_t) ddb_buffer;
 	next_free_inode = unpack_unsigned_int(dir->data.next_free_inode);
 	next_free_data_block = unpack_unsigned_int(fdb->data.next_free_block);
-	pack_unsigned_int(superblk->data.next_free_inode, next_free_inode);
-	pack_unsigned_int(superblk->data.next_free_data_block, next_free_data_block);
+	pack_unsigned_int(superblk->data.first_free_inode, next_free_inode);
+	pack_unsigned_int(superblk->data.first_free_data_block, next_free_data_block);
 
 	// Write updated superblock
 	error = minifile_write_block(&disk, 0, (char*) superblk);
@@ -275,6 +275,8 @@ int minifile_mkdir(char *dirname) {
 	pack_unsigned_int(ind->data.size, size + 1);
 
 	// Find & set a pointer in wd inode to point to new dir inode
+	// ...
+
 
 	// Unlock fdt entry
 	semaphore_V(file_description_table[wd]->mutex);
@@ -282,7 +284,7 @@ int minifile_mkdir(char *dirname) {
 	// Update directory inode
 	dir->data.inode_type = DIR;
 	pack_unsigned_int(dir->data.size, 2);
-	pack_unsigned_int(dir->data.next_free_inode, 0); // Set directory's next_free_inode = 0 since in use
+	pack_unsigned_int(dir->data.first_free_inode, 0); // Set directory's next_free_inode = 0 since in use
 	pack_unsigned_int(dir->data.direct_ptrs[0], ddb_num);
 
 	// Write new directory inode
@@ -330,6 +332,68 @@ int minifile_mkdir(char *dirname) {
 }
 
 int minifile_rmdir(char *dirname) {
+	minithread_t thread;
+	int wd, error, next_free_inode, free_inodes, dir_inode, ddb_num, size, next_free_data_block, free_data_blocks;
+	// char wd_buffer[DISK_BLOCK_SIZE];
+	char dir_buffer[DISK_BLOCK_SIZE];
+	char target_buffer[DISK_BLOCK_SIZE];
+	char ddb_buffer[DISK_BLOCK_SIZE];
+	char superblock_buffer[DISK_BLOCK_SIZE];
+	inode_t ind, dir;
+	superblock_t superblk;
+	dir_data_block_t ddb;
+	free_data_block_t fdb;
+
+	// Check for invalid arguments
+	if (dirname == NULL) {
+		fprintf(stderr, "ERROR: minifile_rmdir() was passed a NULL dirname pointer\n");
+		return -1;
+	}
+
+	thread = minithread_self();
+	wd = thread->wd;
+
+	dir_inode = minifile_find(dirname, wd);
+	if (dir_inode == -1) {
+		fprintf(stderr, "ERROR: minifile_rmdir() could not find directory\n");
+		return 0;
+	} else if (dir_inode == -2) {
+		printf("ERROR minifile_rmdir(): search on directory ‘%s’ gave non-inode block number\n", dirname);
+		return 0;
+	} // assume positive block out here
+
+	// Read directory inode
+	if ((error = minifile_read_block(&disk, dir_inode, dir_buffer)) < 0) {
+		fprintf(stderr, "ERROR: minifile_rmdir() failed to read directory %i\n", error);
+		return -1;
+	}
+	dir = (inode_t) dir_buffer;
+
+	// Ensure directory is, in fact, a directory
+	if (dir->data.inode_type == FIL) {
+		fprintf(stderr, "ERROR: minifile_rmdir() called and directory points to a non-directory!\n");
+		// semaphore_V(file_description_table[wd]->mutex);
+		// TODO: Flag to reverse superblock changes
+		return -1;
+	} else if (dir->data.inode_type != DIR) {
+		fprintf(stderr, "ERROR: minifile_rmdir() got inode of unknown type\n");
+		// TODO: Flag to reverse superblock changes
+		return -1;
+	}
+
+	// Make sure size of directory being removed is zero
+	size = unpack_unsigned_int(dir->data.size);
+	if (size < 0) {
+		fprintf(stderr, "ERROR: minifile_rmdir() got negative size for directory\n");
+	} else if (size > 0) {
+		fprintf(stderr, "minifile_rmdir() called on non-empty directory\n");
+		return -1;
+	}
+
+	// Gen approach: find the directory data block within the parent directory that this dir sits at
+	// remove that entry in the ddb of parent directory, refill with last content entry for parent directory
+	// IF removing last entry in parent's last ddb means deleting an indirect node, handle that
+
 	return 0;
 }
 
@@ -431,7 +495,7 @@ char** minifile_ls(char *path) {
 	}
 	dir = (inode_t) dir_buffer;
 
-	// Ensure current working directory is, in fact, a directory
+	// Ensure directory is, in fact, a directory
 	if (dir->data.inode_type == FIL) {
 		fprintf(stderr, "ERROR: minifile_ls() called and path points to a non-directory!\n");
 		semaphore_V(file_description_table[wd]->mutex);
