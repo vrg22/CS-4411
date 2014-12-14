@@ -286,7 +286,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	requests = malloc(sizeof(struct mutex_mem_buffer_map));
 	if (requests == NULL) {
 		fprintf(stderr, "ERROR: minithread_system_initialize() failed to allocate mmbm_t\n");
-		return 0;
+		return;
 	}
 	//Init mmbm_sema to correct size
 	mmbm_sema = semaphore_create(); 
@@ -772,61 +772,37 @@ void remove_cache_entry(cache_elem_t entry) {
 void disk_handler(disk_interrupt_arg_t* arg) {
 	// disk_t* disk_ptr;
 	disk_request_t request;
-	disk_reply_t reply;
-	disk_request_type_t type; // CHECK: Not getting set!
-	int blocknum;
-	char* block; // Should this now be the NON-NULL Block value for a read?
-	superblock_t superblk;
-
-	printf("\nIN DISK HANDLER!\n");
+	// disk_reply_t reply;
+	// disk_request_type_t type;
+	// int blocknum;
+	char* block;
+	// superblock_t superblk;
+	int entry;
+	semaphore_t req_sema;
 
 	// Identify arg type
 	// disk_ptr = arg->disk;
 	request = arg->request;
-	reply = arg->reply;
-	type = request.type;
-	blocknum = request.blocknum;
+	// reply = arg->reply;
+	// type = request.type;
+	// blocknum = request.blocknum;
 	block = request.buffer;
 
 	/*printf("Name of your disk: %s\n", disk_name);	
 	printf("Size of disk (in blocks): %i\n", disk_ptr->layout.size);
 	printf("This arg's disk reply: %i\n", reply);*/
 
-	// Decide type of reply/request
-	if (type == DISK_READ) {
-		// decide if reply is OK, etc.
-		printf("Has this read request been processed yet?->FIG OUT\n");
-		if (reply == DISK_REPLY_FAILED) {
-			printf("failed\n");
-		} else if (reply == DISK_REPLY_ERROR) {
-			printf("error\n");
-		} else if (reply == DISK_REPLY_CRASHED) {
-			printf("crashed\n");
-		} else { // REPLY_OK
-			if (blocknum == 0) {
-				printf("Reading the superblock...\n");
-				superblk = (superblock_t) block;
-
-				printf("Magic # = %i\n", unpack_unsigned_int(superblk->data.magic_number));
-				printf("Root inode # = %i\n", unpack_unsigned_int(superblk->data.root_inode));
-				// First free inode, first free data block
-			}
-		}
-	} else if (type == DISK_WRITE) {
-		// printf("DID IT WRITE?\n");
-		// decide if reply is OK, etc.
-		if (reply == DISK_REPLY_FAILED) {
-			printf("failed\n");
-		} else if (reply == DISK_REPLY_ERROR) {
-			printf("error\n");
-		} else if (reply == DISK_REPLY_CRASHED) {
-			printf("crashed\n");
-		} else { // REPLY_OK
-			printf("wrote bitch!@\n");
-		}
+	// Search through mmbm_t requests until found same char* as for the thing
+	entry = 0;
+	while (entry < MAX_PENDING_DISK_REQUESTS  &&  requests->buff_addr[entry] != block) {
+		entry++;
+	}
+	if (entry == MAX_PENDING_DISK_REQUESTS) { // Didn't find in mmbm_t table
+		printf("ERROR: disk_handler returned a disk reply not corresponding to an active disk handler\n");
 	} else {
-		printf("Type: %i\n", type);
-		printf("TODO\n");
+		req_sema = *((semaphore_t*) requests->sema_addr[entry]);
+		semaphore_V(req_sema);
+		// The thread will handle deallocation of entry in mmbtm
 	}
 
 	return;
