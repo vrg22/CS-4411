@@ -163,7 +163,7 @@ int minifile_unlink(char *filename) {
 
 int minifile_mkdir(char *dirname) {
 	minithread_t thread;
-	int wd, error, next_free_inode, free_inodes, dir_inode;
+	int wd, error, next_free_inode, free_inodes, dir_inode, size;
 	char wd_buffer[DISK_BLOCK_SIZE];
 	char target_buffer[DISK_BLOCK_SIZE];
 	char superblock_buffer[DISK_BLOCK_SIZE];
