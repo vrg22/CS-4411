@@ -4,6 +4,7 @@
 #include "synch.h"
 #include "minithread.h"
 #include "miniheader.h"
+#include "queue.h"
 
 
 semaphore_t metadata_mutex; // Mutex for metadata accesses spanning multiple inodes (creating, deleting files & directories that require directory inodes to change)
@@ -404,12 +405,124 @@ int minifile_cd(char *path) {
 	}
 }
 
-char **minifile_ls(char *path) {
-	return NULL;
+char** minifile_ls(char *path) {
+	int dir_num, ddb_num, indir_num, size, dptr, num, idx, iptr, error;
+	char dir_buffer[DISK_BLOCK_SIZE], ddb_buffer[DISK_BLOCK_SIZE], indir_buffer[DISK_BLOCK_SIZE];
+	char** names;
+	inode_t dir;
+	dir_data_block_t ddb;
+	indirect_block_t indir;
+	minithread_t thread;
+
+	// Read that particular directory data block
+	// Extract that data
+	// keep reading stuff until no more stuff in working dir to print
+
+	dir_num = get_block_ptr(path); // Should point to inode of directory (guaranteed to be inode, hopefully)
+	if (dir_num < 0) {
+		printf("ERROR: minifile_ls() given invalid path\n");
+		return NULL;
+	}
+
+	// Read directory inode
+	if ((error = minifile_read_block(&disk, dir_num, dir_buffer)) < 0) {
+		fprintf(stderr, "ERROR: minifile_ls() failed to read directory %i\n", error);
+		return -1;
+	}
+	dir = (inode_t) dir_buffer;
+
+	// Ensure current working directory is, in fact, a directory
+	if (dir->data.inode_type == FIL) {
+		fprintf(stderr, "ERROR: minifile_ls() called and path points to a non-directory!\n");
+		semaphore_V(file_description_table[wd]->mutex);
+		// TODO: Flag to reverse superblock changes
+		return -1;
+	} else if (dir->data.inode_type != DIR) {
+		fprintf(stderr, "ERROR: minifile_ls() got inode of unknown type\n");
+		// TODO: Flag to reverse superblock changes
+		return -1;
+	}
+	
+	// Get size for reference
+	size = unpack_unsigned_int(dir->data.size);
+	names = malloc((256)*sizeof(char) * (size+1)); //Size+1 for null termination
+	if (names == NULL) {
+		fprintf(stderr, "ERROR: minifile_ls() failed to allocate array for filenames\n");
+		return NULL;
+	}
+	
+	// Search directory data blocks directly available from dir's inode
+	num = 0;
+	dptr = 0; //Index OF particular directory data block within this directory's inode
+	indir_num = unpack_unsigned_int(dir->data.indirect_ptr);
+	while (dptr < TABLE_SIZE && num < size) { // get all files from the first directory data block
+		ddb_num = unpack_unsigned_int(dir->data.direct_ptrs[dptr]);
+
+		// Read directory data block
+		if ((error = minifile_read_block(&disk, ddb_num, ddb_buffer)) < 0) {
+			fprintf(stderr, "ERROR: minifile_ls() failed to read directory data block %i\n", error);
+			return -1;
+		}
+		ddb = (dir_data_block_t) ddb_buffer;
+
+		idx = (dptr == 0) ? 2 : 0;
+		while (idx < TABLE_SIZE && num < size) { // get names from direct entries in directory data block
+			memcpy(names[num], ddb->data.direct_entries[idx], 256);
+			idx++;
+			num++;
+		}
+
+		dptr++;
+	}
+	// Finished exhausting direct data blocks from directory's inode
+
+	// While filenames left (i.e. have to go to a new indirect block)
+	while (num < size) {
+		// Read indirect block
+		if ((error = minifile_read_block(&disk, indir_num, indir_buffer)) < 0) {
+			fprintf(stderr, "ERROR: minifile_ls() failed to read indirect block %i\n", error);
+			return -1;
+		}
+		indir = (indirect_block_t) indir_buffer;
+
+		//Update next indirect block num
+		indir_num = unpack_unsigned_int(indir->data.indirect_ptr);
+
+		// Go through this directory data block
+		dptr = 0; //Index OF particular ddb within this indirect block
+
+		while (dptr < TABLE_SIZE && num < size) {
+			ddb_num = unpack_unsigned_int(dir->data.direct_ptrs[dptr]);
+
+			// Read directory data block
+			if ((error = minifile_read_block(&disk, ddb_num, ddb_buffer)) < 0) {
+				fprintf(stderr, "ERROR: minifile_ls() failed to read directory data block %i\n", error);
+				return -1;
+			}
+			ddb = (dir_data_block_t) ddb_buffer;
+
+			idx = 0;  //Index of actual name entry within ddb
+			while (idx < TABLE_SIZE && num < size) { // get names from direct entries in directory data block
+				memcpy(names[num], ddb->data.direct_entries[idx], 256);
+				idx++;
+				num++;
+			}
+
+			dptr++;
+		}
+	}
+
+	return names;
 }
 
-char* minifile_pwd(void) {
-	return NULL;
+char* minifile_pwd(void) {	
+	// very first direct block and second elt
+	// search through
+
+	int wd, block_num, error;
+	char block_buffer[DISK_BLOCK_SIZE];
+	inode_t ind;
+	minithread_t thread;
 }
 
 int minifile_find(char *filename, int inode_block_num) {
