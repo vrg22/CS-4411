@@ -157,10 +157,16 @@ char **minifile_ls(char *path);
 char* minifile_pwd(void);
 
 /*
- * Searches inode of block # = inode_block_num for a file named filename.
+ * Searches inode of block # = inode_block_num for a file named filename
  * Returns the block number of the resulting file, -1 if file not found, -2 if inode_block_num corresponds to non-inode block
  */
 int minifile_find(char *filename, int inode_block_num);
+
+/*
+ * Searches inode of block # = inode_block_num for a file of whose inode # = target_block_num.  Stores filename in name (char array of length of at least 256 characters)
+ * Returns the 1 if no error, 0 if file not found, -1 on error
+ */
+int minifile_find_rev_lookup(int target_block_num, int inode_block_num, char* name);
 
 /*
  * Finds the block number of the inode corresponding to the file specified in path (uses minifile_find() iteratively on each directory)
