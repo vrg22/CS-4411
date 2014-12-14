@@ -163,12 +163,15 @@ int minifile_unlink(char *filename) {
 
 int minifile_mkdir(char *dirname) {
 	minithread_t thread;
-	int wd, error, next_free_inode, free_inodes, dir_inode, size;
+	int wd, error, next_free_inode, free_inodes, dir_inode, ddb_num, size, next_free_data_block, free_data_blocks;
 	char wd_buffer[DISK_BLOCK_SIZE];
 	char target_buffer[DISK_BLOCK_SIZE];
+	char ddb_buffer[DISK_BLOCK_SIZE];
 	char superblock_buffer[DISK_BLOCK_SIZE];
 	inode_t ind, dir;
 	superblock_t superblk;
+	dir_data_block_t ddb;
+	free_data_block_t fdb;
 
 	// Check for invalid arguments
 	if (dirname == NULL) {
@@ -189,11 +192,12 @@ int minifile_mkdir(char *dirname) {
 	}
 
 	// Lock superblock fdt entry
-	semaphore_P(file_description_table[wd]->mutex);
+	semaphore_P(file_description_table[0]->mutex);
 	
 	// Read superblock inode
 	if ((error = minifile_read_block(&disk, 0, superblock_buffer)) < 0) {
 		fprintf(stderr, "ERROR: minifile_mkdir() failed to read block %i\n", error);
+		semaphore_V(file_description_table[0]->mutex);
 		return -1;
 	}
 
@@ -201,6 +205,7 @@ int minifile_mkdir(char *dirname) {
 	superblk = (superblock_t) superblock_buffer;
 	if ((free_inodes = unpack_unsigned_int(superblk->data.free_inodes)) < 1) {
 		fprintf(stderr, "ERROR: minifile_mkdir() encountered no more inodes\n");
+		semaphore_V(file_description_table[0]->mutex);
 		return -1;
 	} else {
 		pack_unsigned_int(superblk->data.free_inodes, free_inodes - 1);
@@ -209,14 +214,38 @@ int minifile_mkdir(char *dirname) {
 	dir_inode = unpack_unsigned_int(superblk->data.next_free_inode); // inode to store new directory
 	if ((error = minifile_read_block(&disk, dir_inode, target_buffer)) < 0) {
 		fprintf(stderr, "ERROR: minifile_mkdir() failed to read block %i\n", error);
+		semaphore_V(file_description_table[0]->mutex);
+		return -1;
+	}
+	ddb_num = unpack_unsigned_int(superblk->data.next_free_data_block); // inode to store new directory
+	if ((error = minifile_read_block(&disk, ddb_num, ddb_buffer)) < 0) {
+		fprintf(stderr, "ERROR: minifile_mkdir() failed to read block %i\n", error);
+		semaphore_V(file_description_table[0]->mutex);
 		return -1;
 	}
 	dir = (inode_t) target_buffer;
+	fdb = (free_data_block_t) ddb_buffer;
 	next_free_inode = unpack_unsigned_int(dir->data.next_free_inode);
+	next_free_data_block = unpack_unsigned_int(fdb->data.next_free_block);
 	pack_unsigned_int(superblk->data.next_free_inode, next_free_inode);
+	pack_unsigned_int(superblk->data.next_free_data_block, next_free_data_block);
+
+	// Write updated superblock
+	error = minifile_write_block(&disk, 0, (char*) superblk);
+
+	// Check for errors
+	if (error == -1) { // Error
+		fprintf(stderr, "ERROR!\n");
+	} else if (error == -2) { // Too many requests?
+		fprintf(stderr, "-2: Too many requests?\n");
+	} else if (error != 0) {
+		fprintf(stderr, "Something went wrong with disk_write_block() return value");
+	} else {
+		fprintf(stderr, "Wrote dir inode successfully\n");
+	}
 
 	// Unlock superblock fdt entry
-	semaphore_V(file_description_table[wd]->mutex);
+	semaphore_V(file_description_table[0]->mutex);
 
 	// Lock fdt entry from other threads accessing this file while we read
 	semaphore_P(file_description_table[wd]->mutex);
@@ -227,30 +256,71 @@ int minifile_mkdir(char *dirname) {
 		return -1;
 	}
 
-	// Increment size
-	// Find & set a pointer in wd inode to point to new dir inode
-
-	// Unlock fdt entry
-	semaphore_V(file_description_table[wd]->mutex);
-
 	ind = (inode_t) wd_buffer;
 
 	// Ensure current working directory is, in fact, a directory
 	if (ind->data.inode_type == FIL) {
 		fprintf(stderr, "ERROR: minifile_mkdir() called and current working directory is a non-directory!\n");
+		semaphore_V(file_description_table[wd]->mutex);
+		// TODO: Flag to reverse superblock changes
 		return -1;
 	} else if (ind->data.inode_type != DIR) {
 		fprintf(stderr, "ERROR: minifile_mkdir() got inode of unknown type\n");
+		// TODO: Flag to reverse superblock changes
 		return -1;
 	}
+
+	size = unpack_unsigned_int(ind->data.size);
+	pack_unsigned_int(ind->data.size, size + 1);
+
+	// Find & set a pointer in wd inode to point to new dir inode
+
+	// Unlock fdt entry
+	semaphore_V(file_description_table[wd]->mutex);
 
 	// Update directory inode
 	dir->data.inode_type = DIR;
 	pack_unsigned_int(dir->data.size, 2);
 	pack_unsigned_int(dir->data.next_free_inode, 0); // Set directory's next_free_inode = 0 since in use
-	pack_unsigned_int(dir->data.direct_ptrs[0], first_data_block);
+	pack_unsigned_int(dir->data.direct_ptrs[0], ddb_num);
 
-	// Write new inode
+	// Write new directory inode
+	error = minifile_write_block(&disk, dir_inode, (char*) dir);
+
+	// Check for errors
+	if (error == -1) { // Error
+		fprintf(stderr, "ERROR!\n");
+	} else if (error == -2) { // Too many requests?
+		fprintf(stderr, "-2: Too many requests?\n");
+	} else if (error != 0) {
+		fprintf(stderr, "Something went wrong with disk_write_block() return value");
+	} else {
+		fprintf(stderr, "Wrote dir inode successfully\n");
+	}
+
+	// Create new ddb
+	ddb = malloc(sizeof(struct dir_data_block));
+	if (ddb == NULL) {
+		fprintf(stderr, "ERROR: minifile_mkdir() failed to create new dir_data_block\n");
+	}
+	pack_unsigned_int(ddb->data.inode_ptrs[0], ddb_num); // . (current directory)
+	memcpy(ddb->data.direct_entries[0], ".", 1);
+	pack_unsigned_int(ddb->data.inode_ptrs[1], wd); // .. (parent directory)
+	memcpy(ddb->data.direct_entries[1], "..", 2);
+
+	// Write new ddb
+	error = minifile_write_block(&disk, ddb_num, (char*) ddb);
+
+	// Check for errors
+	if (error == -1) { // Error
+		fprintf(stderr, "ERROR!\n");
+	} else if (error == -2) { // Too many requests?
+		fprintf(stderr, "-2: Too many requests?\n");
+	} else if (error != 0) {
+		fprintf(stderr, "Something went wrong with disk_write_block() return value");
+	} else {
+		fprintf(stderr, "Wrote ddb successfully\n");
+	}
 
 	// if failed, lock superblock, re-read superblock, increment free_inodes, re-add first_free_inode, write superblock, unlock
 	// also lock wd, decrement size, remove entry we previously added, unlock wd
