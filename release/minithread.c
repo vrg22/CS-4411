@@ -800,7 +800,7 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 	if (entry == MAX_PENDING_DISK_REQUESTS) { // Didn't find in mmbm_t table
 		printf("ERROR: disk_handler returned a disk reply not corresponding to an active disk handler\n");
 	} else {
-		req_sema = *((semaphore_t*) requests->sema_addr[entry]);
+		req_sema = *(requests->sema_addr[entry]);
 		semaphore_V(req_sema);
 		// The thread will handle deallocation of entry in mmbtm
 	}

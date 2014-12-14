@@ -51,8 +51,10 @@ struct file_description {
 };
 
 struct mutex_mem_buffer_map {
-	char buff_addr[MAX_PENDING_DISK_REQUESTS][sizeof(char*)];
-	char sema_addr[MAX_PENDING_DISK_REQUESTS][sizeof(semaphore_t*)];
+	// char buff_addr[MAX_PENDING_DISK_REQUESTS][sizeof(char*)];
+	// char sema_addr[MAX_PENDING_DISK_REQUESTS][sizeof(semaphore_t*)];
+	char* buff_addr[MAX_PENDING_DISK_REQUESTS];
+	semaphore_t* sema_addr[MAX_PENDING_DISK_REQUESTS];
 };
 
 /* 
