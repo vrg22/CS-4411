@@ -282,6 +282,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	disk_initialize(&disk);
 	install_disk_handler((interrupt_handler_t) disk_handler);
 
+	/*
 	// Create requests table
 	requests = malloc(sizeof(struct mutex_mem_buffer_map));
 	if (requests == NULL) {
@@ -295,6 +296,7 @@ void minithread_system_initialize(proc_t mainproc, arg_t mainarg) {
 	//Init mmbm mutex
 	mmbm_mutex = semaphore_create(); 
 	semaphore_initialize(mmbm_mutex, 1);
+	*/
 
 	// Create and schedule first minithread                 
 	current = minithread_fork(mainproc, mainarg);         //CHECK FOR INVARIANT!!!!!
@@ -458,6 +460,7 @@ void network_handler(network_interrupt_arg_t* pkt) {
 
 				if (network_compare_network_addresses(dest_addr, my_addr) != 0) {  // This packet is meant for me
 					if (ports[dest_port] != NULL) {     //Locally unbound port exists
+						fprintf(stderr, "GOT HERE?\n");
 						if (ports[dest_port]->u.unbound.incoming_data != NULL) {  //Queue at locally unbound port has been initialized
 							//Put PTR TO ENTIRE PACKET (type: network_interrupt_arg_t*) in the queue at that port
 							queue_append(ports[dest_port]->u.unbound.incoming_data, /*(void*)*/ pkt);   //(minimsg_t) subbuffer, data;
@@ -771,27 +774,28 @@ void remove_cache_entry(cache_elem_t entry) {
 
 void disk_handler(disk_interrupt_arg_t* arg) {
 	// disk_t* disk_ptr;
-	disk_request_t request;
+	// disk_request_t request;
 	// disk_reply_t reply;
 	// disk_request_type_t type;
 	// int blocknum;
-	char* block;
+	//char* block;
 	// superblock_t superblk;
-	int entry;
-	semaphore_t req_sema;
+	//int entry;
+	//semaphore_t req_sema;
 
 	// Identify arg type
 	// disk_ptr = arg->disk;
-	request = arg->request;
+	//request = arg->request;
 	// reply = arg->reply;
 	// type = request.type;
 	// blocknum = request.blocknum;
-	block = request.buffer;
+	//block = request.buffer;
 
 	/*printf("Name of your disk: %s\n", disk_name);	
 	printf("Size of disk (in blocks): %i\n", disk_ptr->layout.size);
 	printf("This arg's disk reply: %i\n", reply);*/
 
+	/*
 	// Search through mmbm_t requests until found same char* as for the thing
 	entry = 0;
 	while (entry < MAX_PENDING_DISK_REQUESTS  &&  requests->buff_addr[entry] != block) {
@@ -804,6 +808,7 @@ void disk_handler(disk_interrupt_arg_t* arg) {
 		semaphore_V(req_sema);
 		// The thread will handle deallocation of entry in mmbtm
 	}
+	*/
 
 	return;
 }

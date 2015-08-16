@@ -28,6 +28,7 @@ int thread1(int* arg) {
   printf("Thread 1.\n");
   minithread_yield();
   minithread_yield();
+  //printf("Thread 1 DONE.\n");          //REMOVE
 
   return 0;
 }

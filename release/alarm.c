@@ -17,6 +17,9 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
 	alarm_t new_alarm;
 	int not_added = 1;
 
+    // Disable interrupts while trying to register an alarm
+    interrupt_level_t old_level = set_interrupt_level(DISABLED);
+
 	/* Initialize new alarm */
     new_alarm = (alarm_t) malloc(sizeof(struct alarm));
     if (new_alarm == NULL) { // malloc() failed
@@ -84,6 +87,9 @@ alarm_id register_alarm(int delay, alarm_handler_t alarm, void *arg) {
     		not_added = 0;
     	}
     }
+    // Re-enable interrupts
+    set_interrupt_level(old_level);
+
     // printf("Alarm queue length: %i\n", queue_length(alarm_queue));
     return (alarm_id) new_alarm;
 }
@@ -94,6 +100,9 @@ int deregister_alarm(alarm_id alarm) {
 
 	int executed = ((alarm_t) alarm)->executed;
 
+    // Disable interrupts while trying to register an alarm
+    interrupt_level_t old_level = set_interrupt_level(DISABLED);
+
     if (queue_delete(alarm_queue, (alarm_t) alarm) < 0) {
         fprintf(stderr, "ERROR: deregister_alarm() failed to delete alarm\n");
     }
@@ -103,6 +112,10 @@ int deregister_alarm(alarm_id alarm) {
     // }
 
     // printf("Alarm queue length: %i\n", queue_length(alarm_queue));
+    
+    // Re-enable interrupts
+    set_interrupt_level(old_level);
+    
     return executed;
 }
 

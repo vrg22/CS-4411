@@ -43,8 +43,8 @@ OBJ =                              \
     minisocket.o                   \
     miniroute.o                    \
     multilevel_queue.o             \
-    minifile.o                     \
-    network.o                      			   
+    network.o                      
+#    minifile.o                     \
 
 %: %.o start.o end.o $(OBJ) $(SYSTEMOBJ)
 	$(CC) $(LIB) -o $@ start.o $(filter-out start.o end.o $(SYSTEMOBJ), $^) end.o $(SYSTEMOBJ) $(LFLAGS)

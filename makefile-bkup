@@ -1,0 +1,22 @@
+OBJ =                              \
+    minithread.o                   \
+    interrupts.o                   \
+    machineprimitives.o            \
+    machineprimitives_x86_64.o     \
+    machineprimitives_x86_64_asm.o \
+    random.o                       \
+    alarm.o                        \
+    queue.o                        \
+    hashtable.o					   \
+    synch.o                        \
+    read.o                         \
+    disk.o                         \
+    mkfs.o                         \
+    miniheader.o                   \
+    minimsg.o                      \
+    minisocket.o                   \
+    miniroute.o                    \
+    multilevel_queue.o             \
+    network.o                      \
+    minifile.o                     \
+    shell.o

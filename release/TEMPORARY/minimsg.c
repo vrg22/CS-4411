@@ -205,9 +205,9 @@ int minimsg_send(miniport_t local_unbound_port, miniport_t local_bound_port, min
 	pack_unsigned_short(hdr->source_port, local_bound_port->port_num); // Source port	
 	network_address_copy(local_bound_port->u.bound.remote_address, dest);
 
-	network_format_address((unsigned int *) my_address, string, 30);
+	network_format_address(dest, string, 30);
 	fprintf(stderr, "%s\n", string); //TESTING!!!
-	//fprintf(stderr, "%d\n", len); //TESTING!!!
+	fprintf(stderr, "%s\n", (char*) msg); //TESTING!!!
 
 	pack_address(hdr->destination_address, dest); // Destination address
 	pack_unsigned_short(hdr->destination_port, local_bound_port->u.bound.remote_unbound_port); // Destination port

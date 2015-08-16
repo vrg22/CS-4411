@@ -1,0 +1,36 @@
+// Decide type of reply/request
+	if (type == DISK_READ) {
+		// decide if reply is OK, etc.
+		printf("Has this read request been processed yet?->FIG OUT\n");
+		if (reply == DISK_REPLY_FAILED) {
+			printf("failed\n");
+		} else if (reply == DISK_REPLY_ERROR) {
+			printf("error\n");
+		} else if (reply == DISK_REPLY_CRASHED) {
+			printf("crashed\n");
+		} else { // REPLY_OK
+			if (blocknum == 0) {
+				printf("Reading the superblock...\n");
+				superblk = (superblock_t) block;
+
+				printf("Magic # = %i\n", unpack_unsigned_int(superblk->data.magic_number));
+				printf("Root inode # = %i\n", unpack_unsigned_int(superblk->data.root_inode));
+				// First free inode, first free data block
+			}
+		}
+	} else if (type == DISK_WRITE) {
+		// printf("DID IT WRITE?\n");
+		// decide if reply is OK, etc.
+		if (reply == DISK_REPLY_FAILED) {
+			printf("failed\n");
+		} else if (reply == DISK_REPLY_ERROR) {
+			printf("error\n");
+		} else if (reply == DISK_REPLY_CRASHED) {
+			printf("crashed\n");
+		} else { // REPLY_OK
+			printf("wrote bitch!@\n");
+		}
+	} else {
+		printf("Type: %i\n", type);
+		printf("TODO\n");
+	}

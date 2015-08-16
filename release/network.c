@@ -104,6 +104,7 @@ send_pkt(network_address_t dest_address,
   struct sockaddr_in sin;
   char* bufp;
   int sz, pktlen;
+  char string[30]; //TESTING
 
   pktlen = hdr_len + data_len;
 
@@ -127,6 +128,9 @@ send_pkt(network_address_t dest_address,
   memcpy(bufp, data, sz);
   bufp += sz;
 
+  network_format_address((unsigned int *) dest_address, string, 30);
+  printf("%s\n", string);
+
   network_address_to_sockaddr(dest_address, &sin);
   cc = sendto(if_info.sock,
               if_info.pkt,
@@ -142,6 +146,8 @@ int
 network_send_pkt(network_address_t dest_address, int hdr_len,
                  char* hdr, int data_len, char* data) {
 
+  char string[30]; //TESTING
+
   if (synthetic_network) {
     if(genrand() < loss_rate)
       return (hdr_len+data_len);
@@ -149,6 +155,11 @@ network_send_pkt(network_address_t dest_address, int hdr_len,
     if(genrand() < duplication_rate)
       send_pkt(dest_address, hdr_len, hdr, data_len, data);
   }
+
+  //TESTING
+  network_format_address(dest_address, string, 30);
+  //printf("%s\n", string);
+  //printf("%s\n", hdr);
 
   return send_pkt(dest_address, hdr_len, hdr, data_len, data);
 }
